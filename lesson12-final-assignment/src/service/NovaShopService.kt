@@ -147,17 +147,17 @@ class NovaShopService(
     fun updateCustomerTier(customerId: String, newTier: MemberTier): Customer {
         val code = customerId.normalizeCode()
         val existing = customersById[code]
-            ?: throw BusinessException("Không tìm thấy khách hàng: $code")
+            ?: throw BusinessException("Khong tim thay khach hang: $code")
         val updated = existing.copy(currentTier = newTier, updatedAt = LocalDateTime.now())
         customersById[code] = updated
         return updated
     }
 
     fun updateProductListPrice(productId: String, newPrice: BigDecimal): Product {
-        require(newPrice > BigDecimal.ZERO) { "Giá danh mục mới phải dương: $newPrice" }
+        require(newPrice > BigDecimal.ZERO) { "Gia danh muc moi phai duong: $newPrice" }
         val code = productId.normalizeCode()
         val existing = productsById[code]
-            ?: throw BusinessException("Không tìm thấy sản phẩm: $code")
+            ?: throw BusinessException("Khong tim thay san pham: $code")
         val updated = existing.copy(listPrice = newPrice)
         productsById[code] = updated
         return updated
@@ -174,7 +174,7 @@ class NovaShopService(
      */
     fun toOrderSummaryView(order: Order): OrderSummaryView {
         val customer = customersById[order.customerId]
-            ?: throw BusinessException("Không tìm thấy khách hàng [${order.customerId}] của đơn [${order.id}]")
+            ?: throw BusinessException("Khong tim thay khach hang [${order.customerId}] cua don [${order.id}]")
 
         val rawSubtotal = order.lines.sumOf { it.lineAmount }
         val subtotal = rawSubtotal.roundMoney()
@@ -197,7 +197,7 @@ class NovaShopService(
 
     fun getOrderSummary(orderId: String): OrderSummaryView {
         val order = findOrderById(orderId)
-            ?: throw BusinessException("Không tìm thấy đơn hàng với mã: ${orderId.normalizeCode()}")
+            ?: throw BusinessException("Khong tim thay don hang voi ma: ${orderId.normalizeCode()}")
         return toOrderSummaryView(order)
     }
 
@@ -216,13 +216,13 @@ class NovaShopService(
         size: Int = 10
     ): PageResult<OrderSummaryView> {
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
-            throw BusinessException("Khoảng ngày tìm kiếm bị đảo ngược: từ ngày ($fromDate) > đến ngày ($toDate)")
+            throw BusinessException("Khoang ngay tim kiem bi dao nguoc: tu ngay ($fromDate) > den ngay ($toDate)")
         }
         if ((minPayable != null && minPayable < BigDecimal.ZERO) || (maxPayable != null && maxPayable < BigDecimal.ZERO)) {
-            throw BusinessException("Khoảng tiền phải trả không được âm (min=$minPayable, max=$maxPayable)")
+            throw BusinessException("Khoang tien phai tra khong duoc am (min=$minPayable, max=$maxPayable)")
         }
         if (minPayable != null && maxPayable != null && minPayable > maxPayable) {
-            throw BusinessException("Khoảng tiền tìm kiếm bị đảo ngược: min ($minPayable) > max ($maxPayable)")
+            throw BusinessException("Khoang tien tim kiem bi dao nguoc: min ($minPayable) > max ($maxPayable)")
         }
 
         val normalizedKeyword = customerKeyword?.normalizeSpaces()?.takeIf { it.isNotEmpty() }
@@ -269,58 +269,58 @@ class NovaShopService(
     private fun validateAndNormalizeOrder(order: Order, isNewOrder: Boolean): Order {
         val orderId = order.id.normalizeCode()
         if (orderId.isEmpty()) {
-            throw BusinessException("Mã đơn hàng không được để trống!")
+            throw BusinessException("Ma don hang khong duoc de trong!")
         }
         if (ordersById.containsKey(orderId)) {
-            throw BusinessException("Đơn [$orderId]: Mã đơn hàng đã tồn tại trong hệ thống!")
+            throw BusinessException("Don [$orderId]: Ma don hang da ton tai trong he thong!")
         }
 
         val customerId = order.customerId.normalizeCode()
         if (customerId.isEmpty()) {
-            throw BusinessException("Đơn [$orderId]: Mã khách hàng không được để trống!")
+            throw BusinessException("Don [$orderId]: Ma khach hang khong duoc de trong!")
         }
         val customer = customersById[customerId]
-            ?: throw BusinessException("Đơn [$orderId]: Khách hàng [$customerId] không tồn tại!")
+            ?: throw BusinessException("Don [$orderId]: Khach hang [$customerId] khong ton tai!")
 
         if (order.lines.isEmpty()) {
-            throw BusinessException("Đơn [$orderId]: Danh sách dòng hàng không được rỗng!")
+            throw BusinessException("Don [$orderId]: Danh sach dong hang khong duoc rong!")
         }
 
         if (isNewOrder && order.status != OrderStatus.NEW) {
-            throw BusinessException("Đơn [$orderId]: Khi tạo đơn mới, trạng thái bắt buộc phải là NEW (nhận được: ${order.status})!")
+            throw BusinessException("Don [$orderId]: Khi tao don moi, trang thai bat buoc phai la NEW (nhan duoc: ${order.status})!")
         }
 
         // Kiểm tra tính nhất quán giữa trạng thái và thời điểm giao hàng `deliveredAt`
         if (order.status == OrderStatus.DELIVERED) {
             val deliveredAt = order.deliveredAt
-                ?: throw BusinessException("Đơn [$orderId]: Trạng thái DELIVERED bắt buộc phải có thời điểm giao hàng (deliveredAt)!")
+                ?: throw BusinessException("Don [$orderId]: Trang thai DELIVERED bat buoc phai co thoi diem giao hang (deliveredAt)!")
             if (deliveredAt.isBefore(order.createdAt)) {
                 throw BusinessException(
-                    "Đơn [$orderId]: Thời điểm giao ($deliveredAt) không được trước thời điểm tạo đơn (${order.createdAt})!"
+                    "Don [$orderId]: Thoi diem giao ($deliveredAt) khong duoc truoc thoi diem tao don (${order.createdAt})!"
                 )
             }
         } else if (order.deliveredAt != null) {
             throw BusinessException(
-                "Đơn [$orderId]: Trạng thái ${order.status} (chưa giao) không được phép có thời điểm giao hàng (${order.deliveredAt})!"
+                "Don [$orderId]: Trang thai ${order.status} (chua giao) khong duoc phep co thoi diem giao hang (${order.deliveredAt})!"
             )
         }
 
         val normalizedLines = order.lines.mapIndexed { idx, line ->
             val productId = line.productId.normalizeCode()
             if (productId.isEmpty()) {
-                throw BusinessException("Đơn [$orderId] - Dòng #${idx + 1}: Mã sản phẩm không được để trống!")
+                throw BusinessException("Don [$orderId] - Dong #${idx + 1}: Ma san pham khong duoc de trong!")
             }
             val product = productsById[productId]
-                ?: throw BusinessException("Đơn [$orderId] - Dòng #${idx + 1}: Sản phẩm [$productId] không tồn tại!")
+                ?: throw BusinessException("Don [$orderId] - Dong #${idx + 1}: San pham [$productId] khong ton tai!")
 
             if (isNewOrder && !product.active) {
-                throw BusinessException("Đơn [$orderId]: Sản phẩm [$productId - ${product.name}] đã ngừng kinh doanh, không thể tạo đơn mới!")
+                throw BusinessException("Don [$orderId]: San pham [$productId - ${product.name}] da ngung kinh doanh, khong the tao don moi!")
             }
             if (line.quantity <= 0) {
-                throw BusinessException("Đơn [$orderId] - Sản phẩm [$productId]: Số lượng mua phải > 0 (nhận được: ${line.quantity})!")
+                throw BusinessException("Don [$orderId] - San pham [$productId]: So luong mua phai > 0 (nhan duoc: ${line.quantity})!")
             }
             if (line.unitPrice <= BigDecimal.ZERO) {
-                throw BusinessException("Đơn [$orderId] - Sản phẩm [$productId]: Đơn giá mua phải > 0 (nhận được: ${line.unitPrice})!")
+                throw BusinessException("Don [$orderId] - San pham [$productId]: Don gia mua phai > 0 (nhan duoc: ${line.unitPrice})!")
             }
 
             line.copy(productId = productId)
@@ -346,18 +346,18 @@ class NovaShopService(
         val normOrderId = orderId.normalizeCode()
         val normCustomerId = customerId.normalizeCode()
         val customer = customersById[normCustomerId]
-            ?: throw BusinessException("Không thể tạo đơn [$normOrderId]: Khách hàng [$normCustomerId] không tồn tại!")
+            ?: throw BusinessException("Khong the tao don [$normOrderId]: Khach hang [$normCustomerId] khong ton tai!")
 
         if (requestedItems.isEmpty()) {
-            throw BusinessException("Không thể tạo đơn [$normOrderId]: Phải có ít nhất 1 dòng sản phẩm!")
+            throw BusinessException("Khong the tao don [$normOrderId]: Phai co it nhat 1 dong san pham!")
         }
 
         val lines = requestedItems.map { (rawProductId, qty) ->
             val prodId = rawProductId.normalizeCode()
             val product = productsById[prodId]
-                ?: throw BusinessException("Không thể tạo đơn [$normOrderId]: Sản phẩm [$prodId] không tồn tại!")
+                ?: throw BusinessException("Khong the tao don [$normOrderId]: San pham [$prodId] khong ton tai!")
             if (!product.active) {
-                throw BusinessException("Không thể tạo đơn [$normOrderId]: Sản phẩm [$prodId - ${product.name}] đang ngừng bán!")
+                throw BusinessException("Khong the tao don [$normOrderId]: San pham [$prodId - ${product.name}] dang ngung ban!")
             }
             OrderLine(
                 productId = product.id,
@@ -393,32 +393,32 @@ class NovaShopService(
     ): OrderSummaryView {
         val code = orderId.normalizeCode()
         val existing = ordersById[code]
-            ?: throw BusinessException("Không tìm thấy đơn hàng [$code] để chuyển trạng thái!")
+            ?: throw BusinessException("Khong tim thay don hang [$code] de chuyen trang thai!")
 
         if (!existing.status.canTransitionTo(targetStatus)) {
             throw BusinessException(
-                "Đơn [$code]: Không được phép chuyển trạng thái từ ${existing.status} sang $targetStatus!"
+                "Don [$code]: Khong duoc phep chuyen trang thai tu ${existing.status} sang $targetStatus!"
             )
         }
 
         val updatedOrder = when (targetStatus) {
             OrderStatus.DELIVERED -> {
                 val validDeliveredAt = deliveredAt
-                    ?: throw BusinessException("Đơn [$code]: Khi chuyển sang DELIVERED phải cung cấp thời điểm giao hàng!")
+                    ?: throw BusinessException("Don [$code]: Khi chuyen sang DELIVERED phai cung cap thoi diem giao hang!")
                 if (validDeliveredAt.isBefore(existing.createdAt)) {
                     throw BusinessException(
-                        "Đơn [$code]: Thời điểm giao ($validDeliveredAt) không được trước thời điểm tạo (${existing.createdAt})!"
+                        "Don [$code]: Thoi diem giao ($validDeliveredAt) khong duoc truoc thoi diem tao (${existing.createdAt})!"
                     )
                 }
                 existing.copy(status = OrderStatus.DELIVERED, deliveredAt = validDeliveredAt)
             }
             OrderStatus.CONFIRMED, OrderStatus.CANCELLED -> {
                 if (deliveredAt != null) {
-                    throw BusinessException("Đơn [$code]: Trạng thái $targetStatus không được có thời điểm giao hàng!")
+                    throw BusinessException("Don [$code]: Trang thai $targetStatus khong duoc co thoi diem giao hang!")
                 }
                 existing.copy(status = targetStatus, deliveredAt = null)
             }
-            OrderStatus.NEW -> throw BusinessException("Đơn [$code]: Không thể quay lại trạng thái NEW!")
+            OrderStatus.NEW -> throw BusinessException("Don [$code]: Khong the quay lai trang thai NEW!")
         }
 
         ordersById[code] = updatedOrder
@@ -433,12 +433,12 @@ class NovaShopService(
         val validated = validateAndNormalizeOrder(candidate, isNewOrder = false)
         OrderOperationResult.Success(
             data = toOrderSummaryView(validated),
-            message = "Đơn [${validated.id}] hợp lệ"
+            message = "Don [${validated.id}] hop le"
         )
     } catch (e: BusinessException) {
         OrderOperationResult.Rejected(
-            orderId = candidate.id.normalizeCode().ifEmpty { "<TRỐNG>" },
-            reason = e.message ?: "Lỗi nghiệp vụ không xác định"
+            orderId = candidate.id.normalizeCode().ifEmpty { "<TRONG>" },
+            reason = e.message ?: "Loi nghiep vu khong xac dinh"
         )
     }
 
@@ -453,10 +453,10 @@ class NovaShopService(
         asOf: LocalDateTime = common.SampleData.AS_OF
     ): BusinessReport {
         if (fromDate.isAfter(toDate)) {
-            throw BusinessException("Kỳ báo cáo không hợp lệ: từ ngày ($fromDate) > đến ngày ($toDate)")
+            throw BusinessException("Ky bao cao khong hop le: tu ngay ($fromDate) > den ngay ($toDate)")
         }
         if (topK <= 0) {
-            throw BusinessException("Tham số xếp hạng topK phải dương (nhận được: $topK)")
+            throw BusinessException("Tham so xep hang topK phai duong (nhan duoc: $topK)")
         }
 
         // Lọc các đơn có ngày tạo (`createdAt.toLocalDate()`) nằm trong đoạn [fromDate, toDate]

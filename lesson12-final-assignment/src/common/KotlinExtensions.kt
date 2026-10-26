@@ -66,10 +66,10 @@ fun LocalDateTime.formatVn(): String = this.format(VN_DATE_TIME_FORMATTER)
  */
 fun <T> List<T>.paginate(page: Int, size: Int): PageResult<T> {
     if (page < 1) {
-        throw BusinessException("Số trang (page) phải >= 1 (nhận được: $page)")
+        throw BusinessException("So trang (page) phai >= 1 (nhan duoc: $page)")
     }
     if (size < 1) {
-        throw BusinessException("Kích thước trang (size) phải >= 1 (nhận được: $size)")
+        throw BusinessException("Kich thuoc trang (size) phai >= 1 (nhan duoc: $size)")
     }
 
     val totalElements = this.size
