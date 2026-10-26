@@ -7,12 +7,12 @@ package view
  *
  * 1. BẢN CHẤT (UNDER THE HOOD / BYTECODE):
  *    - `kotlin.String` chính là `java.lang.String` quen thuộc trên JVM (bất biến - Immutable trên Heap),
- *      nhưng được Kotlin trang bị thêm hàng loạt **Extension Functions** cực mạnh trong `kotlin.text`
+ *      nhưng được Kotlin trang bị thêm hàng loạt **Extension Functions** hữu ích trong `kotlin.text`
  *      (`isBlank()`, `padStart()`, `substringBefore()`, `substringAfter()`, `removePrefix()`, `lines()`...).
  *    - **String Templates (`"Xin chào $name, tổng = ${a + b}"`)**:
  *      + Trong Java, bạn phải nối chuỗi bằng dấu `+` hoặc `String.format(...)`.
  *      + Trong Kotlin, trình biên dịch dịch `"Xin chào $name"` thành `invokedynamic` (`makeConcatWithConstants`
- *        từ Java 9+) hoặc `StringBuilder`, đạt hiệu năng tối ưu mà code cực kỳ sạch sẽ!
+ *        từ Java 9+) hoặc `StringBuilder`, đạt hiệu năng tốt mà code rất sạch sẽ!
  *    - **Multiline Raw Strings (`""" ... """`)**:
  *      + Giữ nguyên xuống dòng và cho phép viết dấu ngoặc kép `"` hoặc ký tự `\` (Regex, đường dẫn Windows,
  *        JSON, SQL) mà KHÔNG cần escape `\"` hay `\\`.
@@ -24,7 +24,7 @@ package view
  *      + Kotlin: `str[0]` (nhờ Operator Overloading `get(index)`), cộng thêm `str.first()`, `str.last()`.
  *    - Cắt chuỗi thông minh:
  *      + Java:   `email.substring(0, email.indexOf('@'))` (dễ dính `IndexOutOfBoundsException` nếu không có `@`!).
- *      + Kotlin: `email.substringBefore('@')` (an toàn tuyệt đối: nếu không tìm thấy `@`, trả về nguyên chuỗi gốc!).
+ *      + Kotlin: `email.substringBefore('@')` (an toàn: nếu không tìm thấy `@`, mặc định trả về nguyên chuỗi gốc!).
  *
  * 3. SPRING KOTLIN CORNER:
  *    - Trong Spring Data JPA `@Query`: Dùng Raw String `""" ... """` để viết câu truy vấn JPQL hoặc Native SQL
@@ -40,46 +40,48 @@ fun main() {
     // =================================================================
     // 1. Indexing & Các hàm xử lý chuỗi đặc sắc của Kotlin Standard Library
     // =================================================================
-    println("1. [String Indexing & Stdlib] Các tiện ích chuỗi vượt trội so với Java:")
+    println("1. [String Indexing & Stdlib] Cac tien ich chuoi vuot troi so voi Java:")
     val email = "  dat.phan@kotlinjourney.vn  "
     val cleanEmail = email.trim()
 
-    println("   -> Chuỗi sau khi trim(): \"$cleanEmail\"")
-    println("   -> Ký tự đầu tiên cleanEmail[0]: '${cleanEmail[0]}' | first(): '${cleanEmail.first()}' | last(): '${cleanEmail.last()}'")
-    println("   -> Kiểm tra isBlank(): ${"   ".isBlank()} (chỉ chứa khoảng trắng) vs isEmpty(): ${"   ".isEmpty()}")
+    println("   -> Chuoi sau khi trim(): \"$cleanEmail\"")
+    println("   -> Ky tu dau tien cleanEmail[0]: '${cleanEmail[0]}' | first(): '${cleanEmail.first()}' | last(): '${cleanEmail.last()}'")
+    println("   -> Kiem tra isBlank(): ${"   ".isBlank()} (chi chua khoang trang) vs isEmpty(): ${"   ".isEmpty()}")
 
-    // Cắt chuỗi không bao giờ sợ lỗi IndexOutOfBoundsException như substring(indexOf(...)) của Java!
+    // Cắt chuỗi không sợ lỗi IndexOutOfBoundsException như substring(indexOf(...)) của Java!
     val username = cleanEmail.substringBefore("@")
     val domain = cleanEmail.substringAfter("@")
+    check(username == "dat.phan" && domain == "kotlinjourney.vn")
     println("   -> substringBefore('@'): \"$username\" | substringAfter('@'): \"$domain\"")
 
     // Tạo mã hóa đơn có độ dài cố định bằng padStart (ví dụ: "42" -> "ORD-000042")
     val orderNumber = 42
     val formattedOrderCode = "ORD-" + orderNumber.toString().padStart(length = 6, padChar = '0')
-    println("   -> Định dạng mã đơn hàng với padStart(): $formattedOrderCode\n")
+    check(formattedOrderCode == "ORD-000042")
+    println("   -> Dinh dang ma don hang voi padStart(): $formattedOrderCode\n")
 
     // =================================================================
     // 2. String Templates: $variable và ${expression}
     // =================================================================
-    println("2. [String Templates] Nhúng biến và biểu thức trực tiếp vào chuỗi:")
+    println("2. [String Templates] Nhung bien va bieu thuc truc tiep vao chuoi:")
     val productName = "MacBook Pro M4"
     val quantity = 2
     val unitPrice = 45_000_000L
 
     // Dùng $biến cho tên biến đơn giản, và ${biểu_thức} cho phép tính hoặc lời gọi hàm
-    val summary = "Sản phẩm: $productName | Số lượng: $quantity | Thành tiền: ${quantity * unitPrice} VND"
+    val summary = "San pham: $productName | So luong: $quantity | Thanh tien: ${quantity * unitPrice} VND"
     println("   -> $summary")
     // Mẹo: Muốn in ký tự đô-la '$' nguyên bản trước chữ cái, dùng `${'$'}` hoặc `\$`
-    println("   -> In ký tự tiền tệ USD: Giá quy đổi khoảng \$${(quantity * unitPrice) / 25_000}\n")
+    println("   -> In ky tu tien te USD: Gia quy doi khoang \$${(quantity * unitPrice) / 25_000}\n")
 
     // =================================================================
     // 3. Multiline Raw Strings ("""...""") - Ứng dụng trong Regex, SQL & JSON
     // =================================================================
-    println("3. [Raw Strings] Chuỗi nhiều dòng không cần ký tự Escape (\\n, \\\"):")
+    println("3. [Raw Strings] Chuoi nhieu dong khong can ky tu Escape (\\n, \\\"):")
 
     // 3a. Đường dẫn Windows hoặc biểu thức chính quy (Regex) không cần gấp đôi dấu gạch chéo `\\`
     val windowsPath = """D:\Kotlin_Journey\lesson01-basics-and-types\src\view"""
-    println("   -> Đường dẫn Windows nguyên bản: $windowsPath")
+    println("   -> Duong dan Windows nguyen ban: $windowsPath")
 
     // 3b. [Spring Data JPA Corner] Câu truy vấn SQL/JPQL nhiều dòng với trimIndent()
     val minTotal = 1_000_000L
@@ -92,7 +94,7 @@ fun main() {
         ORDER BY o.createdAt DESC
     """.trimIndent()
 
-    println("   -> [Spring @Query] Câu lệnh JPQL sau khi .trimIndent():")
+    println("   -> [Spring @Query] Cau lenh JPQL sau khi .trimIndent():")
     println(jpqlQuery.prependIndent("      "))
 
     // 3c. [Spring MockMvc Test Corner] Tạo payload JSON động

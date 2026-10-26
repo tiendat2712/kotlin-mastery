@@ -6,10 +6,10 @@ package view
  * =====================================================================
  *
  * 1. BẢN CHẤT (UNDER THE HOOD / BYTECODE):
- *    - Trong Java, mọi hàm bắt buộc phải nằm trong một `class`. Để chạy chương trình,
- *      JVM cần tìm `public static void main(String[] args)` bên trong một class.
+ *    - Trong Java truyền thống, các phương thức thường phải đặt bên trong một `class`. Để chạy chương trình,
+ *      JVM cần tìm điểm vào `public static void main(String[] args)` bên trong một class.
  *    - Trong Kotlin, bạn có thể viết **Top-Level Function** (`fun main()`) nằm trực tiếp
- *      trong file `Ex01MainAndIo.kt` mà không cần bọc `class`.
+ *      trong file `Ex01MainAndIo.kt` mà không cần tự khai báo `class` bao ngoài.
  *    - Khi biên dịch ra JVM Bytecode, trình biên dịch Kotlin (`kotlinc`) tự động sinh ra
  *      một class tên là `view.Ex01MainAndIoKt` (tên file + hậu tố `Kt`), và biến hàm
  *      `fun main()` thành `public static final void main(String[] args)` để JVM thực thi!
@@ -26,7 +26,7 @@ package view
  *      (b) Đặt tên hàm kiểm thử (Unit Test) bằng câu tiếng Anh/tiếng Việt tự nhiên có khoảng trắng!
  *
  * 3. SPRING KOTLIN CORNER:
- *    - Điểm khởi chạy của ứng dụng Spring Boot Kotlin dùng top-level `fun main(args: Array<String>)`:
+ *    - Điểm khởi chạy của ứng dụng Spring Boot Kotlin thường dùng top-level `fun main(args: Array<String>)`:
  *      ```kotlin
  *      @SpringBootApplication
  *      class OrderServiceApplication
@@ -35,8 +35,8 @@ package view
  *          runApplication<OrderServiceApplication>(*args)
  *      }
  *      ```
- *    - Trong JUnit 5 + Spring Boot Test, lập trình viên Kotlin hầu như KHÔNG cần dùng
- *      `@DisplayName("...")` của Java nữa mà viết thẳng tên hàm test bằng dấu backtick:
+ *    - Trong JUnit 5 + Spring Boot Test, lập trình viên Kotlin thường dùng dấu backtick để viết thẳng
+ *      tên hàm test dễ đọc thay vì phải gắn thêm `@DisplayName("...")`:
  *      `fun `should return 200 OK when user exists`() { ... }`
  * =====================================================================
  */
@@ -47,42 +47,43 @@ fun main() {
     // =================================================================
     // 1. Xuất dữ liệu ra Console: print() vs println()
     // =================================================================
-    println("1. [print vs println] Xuất dữ liệu ra Standard Output:")
-    print("   -> Dòng này dùng print() nên chưa xuống dòng... ")
-    println("Còn println() sẽ in tiếp và kết thúc bằng ký tự newline (\\n)!")
-    println("   -> Dòng mới bắt đầu tại đây.\n")
+    println("1. [print vs println] Xuat du lieu ra Standard Output:")
+    print("   -> Dong nay dung print() nen chua xuong dong... ")
+    println("Con println() se in tiep va ket thuc bang ky tu newline (\\n)!")
+    println("   -> Dong moi bat dau tai day.\n")
 
     // =================================================================
     // 2. Các loại Comments và KDoc trong Kotlin
     // =================================================================
-    println("2. [Comments & KDoc] Ghi chú trong mã nguồn:")
+    println("2. [Comments & KDoc] Ghi chu trong ma nguon:")
     // Comment 1 dòng (Single-line comment) giống hệt Java.
     /*
        Comment nhiều dòng (Multi-line block comment).
        ĐIỂM ĐẶC BIỆT CỦA KOTLIN SO VỚI JAVA:
        /* Kotlin cho phép lồng (nest) block comment bên trong block comment! */
-       Điều này cực kỳ tiện khi bạn muốn tạm comment-out cả một đoạn code lớn.
+       Điều này rất tiện khi bạn muốn tạm comment-out cả một đoạn code lớn.
     */
     val sumResult = calculateDiscountedPrice(originalPrice = 200_000L, discountPercent = 15)
-    println("   -> Giá sau giảm (hàm có tài liệu KDoc): $sumResult VND\n")
+    check(sumResult == 170_000L)
+    println("   -> Gia sau giam (ham co tai lieu KDoc): $sumResult VND\n")
 
     // =================================================================
     // 3. Backtick Identifiers (` `) - Đặc sản của Kotlin
     // =================================================================
-    println("3. [Backtick Identifiers] Giải cứu từ khóa & Đặt tên hàm Test:")
+    println("3. [Backtick Identifiers] Giai cuu tu khoa & Dat ten ham Test:")
 
     // 3a. Đặt tên biến hoặc gọi thành phần trùng với Hard Keyword của Kotlin (in, is, when, object, val...)
     // Trong Java, `System.in` là hợp lệ vì `in` không phải từ khóa của Java.
     // Nhưng trong Kotlin, `in` là từ khóa (dùng cho vòng lặp `for (x in list)`).
     // Do đó khi tham chiếu tới `System.in` hoặc biến tên `in`, ta bọc trong dấu backtick `` `in` ``:
-    val `in` = "Luồng dữ liệu đầu vào giả lập (escaped keyword `in`)"
+    val `in` = "Luong du lieu dau vao gia lap (escaped keyword `in`)"
     val `is` = true
-    println("   -> Giá trị biến trùng từ khóa `in`: ${`in`}")
-    println("   -> Giá trị biến trùng từ khóa `is`: ${`is`}")
-    println("   -> Truy cập chuẩn InputStream của JVM: System.`in` = ${System.`in`.javaClass.simpleName}")
+    println("   -> Gia tri bien trung tu khoa `in`: ${`in`}")
+    println("   -> Gia tri bien trung tu khoa `is`: ${`is`}")
+    println("   -> Truy cap chuan InputStream cua JVM: System.`in` = ${System.`in`.javaClass.simpleName}")
 
     // 3b. Gọi hàm có khoảng trắng (mô phỏng JUnit 5 Test trong Spring Boot)
-    println("\n4. [Spring Boot Test Idiom] Tên hàm chứa khoảng trắng bằng Backticks:")
+    println("\n4. [Spring Boot Test Idiom] Ten ham chua khoang trang bang Backticks:")
     `should return 200 OK when user exists`()
     `should throw 404 NotFound when order id is invalid`()
 

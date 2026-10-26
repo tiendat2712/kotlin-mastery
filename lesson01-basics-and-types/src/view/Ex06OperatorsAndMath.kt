@@ -44,7 +44,7 @@ import kotlin.math.roundToInt
  *    - Trong các hệ thống Fintech / E-Commerce viết bằng Spring Boot Kotlin, ta thường xây dựng
  *      Value Object `Money(val amount: BigDecimal, val currency: String)` và nạp chồng toán tử
  *      `+`, `-`, `*` kèm kiểm tra cùng loại tiền tệ (`require(currency == other.currency)`),
- *      giúp tầng Domain Service cực kỳ biểu cảm và không thể cộng nhầm USD với VND!
+ *      giúp tầng Domain Service rất biểu cảm và tránh cộng nhầm USD với VND!
  * =====================================================================
  */
 
@@ -57,7 +57,7 @@ private data class Money(
     // Nạp chồng toán tử `+` (a + b -> a.plus(b))
     operator fun plus(other: Money): Money {
         require(this.currency == other.currency) {
-            "Không thể cộng 2 loại tiền tệ khác nhau: ${this.currency} và ${other.currency}"
+            "Khong the cong 2 loai tien te khac nhau: ${this.currency} va ${other.currency}"
         }
         return Money(this.amount + other.amount, this.currency)
     }
@@ -65,7 +65,7 @@ private data class Money(
     // Nạp chồng toán tử `-` (a - b -> a.minus(b))
     operator fun minus(other: Money): Money {
         require(this.currency == other.currency) {
-            "Không thể trừ 2 loại tiền tệ khác nhau: ${this.currency} và ${other.currency}"
+            "Khong the tru 2 loai tien te khac nhau: ${this.currency} va ${other.currency}"
         }
         return Money(this.amount - other.amount, this.currency)
     }
@@ -78,7 +78,7 @@ private data class Money(
     // Nạp chồng compareTo để tự động dùng được các toán tử `<`, `<=`, `>`, `>=`!
     override operator fun compareTo(other: Money): Int {
         require(this.currency == other.currency) {
-            "Không thể so sánh 2 loại tiền tệ khác nhau: ${this.currency} và ${other.currency}"
+            "Khong the so sanh 2 loai tien te khac nhau: ${this.currency} va ${other.currency}"
         }
         return this.amount.compareTo(other.amount)
     }
@@ -92,18 +92,18 @@ fun main() {
     // =================================================================
     // 1. Toán tử số học cơ bản & Thư viện kotlin.math.*
     // =================================================================
-    println("1. [Arithmetic & kotlin.math] Toán tử cơ bản và các hàm toán học:")
+    println("1. [Arithmetic & kotlin.math] Toan tu co ban va cac ham toan hoc:")
     val a = 17
     val b = 5
-    println("   -> Phép chia nguyên: $a / $b = ${a / b} | Chia lấy dư (rem): $a % $b = ${a % b}")
-    println("   -> Phép chia thực:   $a.toDouble() / $b = ${a.toDouble() / b}")
+    println("   -> Phep chia nguyen: $a / $b = ${a / b} | Chia lay du (rem): $a % $b = ${a % b}")
+    println("   -> Phep chia thuc:   $a.toDouble() / $b = ${a.toDouble() / b}")
     println("   -> max(17, 5) = ${max(a, b)} | min(17, 5) = ${min(a, b)} | abs(-42) = ${abs(-42)}")
-    println("   -> Lũy thừa 2.0.pow(10) = ${2.0.pow(10)} | Làm tròn 3.65.roundToInt() = ${3.65.roundToInt()}\n")
+    println("   -> Luy thua 2.0.pow(10) = ${2.0.pow(10)} | Lam tron 3.65.roundToInt() = ${3.65.roundToInt()}\n")
 
     // =================================================================
     // 2. Toán tử trên BigDecimal (Giải phóng khỏi .add(), .subtract(), .compareTo() của Java)
     // =================================================================
-    println("2. [BigDecimal Operators] Tính toán tài chính trực quan trong Kotlin:")
+    println("2. [BigDecimal Operators] Tinh toan tai chinh truc quan trong Kotlin:")
     val unitPrice = BigDecimal("350000.00")
     val quantity = BigDecimal("3")
     val voucherDiscount = BigDecimal("100000.00")
@@ -111,17 +111,18 @@ fun main() {
 
     // Trong Kotlin: dùng trực tiếp *, -, + trên BigDecimal!
     val finalBill: BigDecimal = unitPrice * quantity - voucherDiscount
-    println("   -> Đơn giá: $unitPrice | Số lượng: $quantity | Giảm giá: $voucherDiscount")
-    println("   -> Tổng thanh toán (unitPrice * quantity - voucherDiscount) = $finalBill")
+    println("   -> Don gia: $unitPrice | So luong: $quantity | Giam gia: $voucherDiscount")
+    println("   -> Tong thanh toan (unitPrice * quantity - voucherDiscount) = $finalBill")
 
     // So sánh lớn hơn / nhỏ hơn bằng `>=` (dưới hậu trường gọi finalBill.compareTo(freeShipThreshold) >= 0)
     val isFreeShipping = finalBill >= freeShipThreshold
-    println("   -> Đủ điều kiện Freeship (finalBill >= $freeShipThreshold)? $isFreeShipping\n")
+    check(isFreeShipping)
+    println("   -> Du dieu kien Freeship (finalBill >= $freeShipThreshold)? $isFreeShipping\n")
 
     // =================================================================
     // 3. Tự định nghĩa Operator Overloading cho class Money (Spring Domain Model)
     // =================================================================
-    println("3. [Custom Operator Overloading] Sử dụng toán tử +, -, *, > trên Domain Object `Money`:")
+    println("3. [Custom Operator Overloading] Su dung toan tu +, -, *, > tren Domain Object `Money`:")
     val itemPrice = Money(250_000.toBigDecimal(), "VND")
     val shippingFee = Money(30_000.toBigDecimal(), "VND")
     val coupon = Money(50_000.toBigDecimal(), "VND")
@@ -129,10 +130,11 @@ fun main() {
     // Nhìn dòng code nghiệp vụ dưới đây: đọc tự nhiên như công thức toán học!
     val orderTotal: Money = (itemPrice * 2) + shippingFee - coupon
     val vipMilestone = Money(400_000.toBigDecimal(), "VND")
+    check(orderTotal > vipMilestone)
 
-    println("   -> Giá 1 sản phẩm: $itemPrice")
-    println("   -> Công thức: (itemPrice * 2) + shippingFee - coupon = $orderTotal")
-    println("   -> So sánh trực tiếp (orderTotal > vipMilestone): ${orderTotal > vipMilestone}")
+    println("   -> Gia 1 san pham: $itemPrice")
+    println("   -> Cong thuc: (itemPrice * 2) + shippingFee - coupon = $orderTotal")
+    println("   -> So sanh truc tiep (orderTotal > vipMilestone): ${orderTotal > vipMilestone}")
 
     println("\n--- ___ * END: Ex06OperatorsAndMath * ___ ---")
 }

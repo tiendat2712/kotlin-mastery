@@ -5,28 +5,28 @@ package view
  * LESSON 01 - EX05: SO SÁNH BẰNG (== VS ===) & BỘ NHỚ STRING POOL
  * =====================================================================
  *
- * 1. BẢN CHẤT (STACK VS HEAP / CÚ LỪA LỚN NHẤT KHI TỪ JAVA SANG KOTLIN):
+ * 1. BẢN CHẤT (STRUCTURAL EQUALITY VS REFERENTIAL EQUALITY):
  *    - Trong Java:
- *      + `a == b` là so sánh **Địa chỉ vùng nhớ (Referential Equality)** trên STACK.
+ *      + `a == b` là so sánh **Địa chỉ tham chiếu (Referential Equality)** đối với kiểu Object.
  *        Rất nhiều lập trình viên Java mắc lỗi kinh điển: dùng `str1 == str2` để so sánh chuỗi!
- *      + `a.equals(b)` mới là so sánh **Giá trị nội dung (Structural Equality)** trên HEAP,
+ *      + `a.equals(b)` mới là so sánh **Giá trị nội dung (Structural Equality)**,
  *        nhưng nếu `a == null` thì gọi `a.equals(b)` sẽ nổ `NullPointerException`!
  *
- *    - Trong Kotlin (ĐẢO NGƯỢC ĐỂ AN TOÀN TUYỆT ĐỐI!):
- *      + `a == b` (2 dấu bằng) là **Structural Equality (So sánh giá trị nội dung trên HEAP)**!
+ *    - Trong Kotlin (ĐẢO NGƯỢC ĐỂ ƯU TIÊN AN TOÀN VỀ GIÁ TRỊ):
+ *      + `a == b` (2 dấu bằng) là **Structural Equality (So sánh giá trị nội dung qua `equals()`)**!
  *        Dưới tầng Bytecode, `a == b` được Kotlin dịch thành:
  *        `a?.equals(b) ?: (b === null)` (tức là `Intrinsics.areEqual(a, b)`).
- *        => Kể cả khi `a` là `null`, phép `a == b` trong Kotlin VẪN CHẠY AN TOÀN, không bao giờ nổ NPE!
- *      + `a === b` (3 dấu bằng) mới là **Referential Equality (So sánh địa chỉ ô nhớ trên STACK)**!
+ *        => Kể cả khi `a` là `null`, phép `a == b` trong Kotlin VẪN CHẠY AN TOÀN, không nổ NPE!
+ *      + `a === b` (3 dấu bằng) mới là **Referential Equality (So sánh 2 tham chiếu có cùng trỏ tới đúng 1 đối tượng trên HEAP hay không)**!
  *        Dưới tầng Bytecode, `a === b` dịch thẳng thành `a == b` của Java!
  *
  * 2. SO SÁNH JAVA VS KOTLIN:
  *    | Mục đích so sánh                     | Cú pháp Java                   | Cú pháp Kotlin |
  *    |--------------------------------------|--------------------------------|----------------|
- *    | So sánh nội dung (Heap - equals)     | `Objects.equals(a, b)`         | `a == b`       |
+ *    | So sánh nội dung (equals)            | `Objects.equals(a, b)`         | `a == b`       |
  *    | So sánh khác nội dung                | `!Objects.equals(a, b)`        | `a != b`       |
- *    | So sánh cùng địa chỉ (Stack ref)     | `a == b`                       | `a === b`      |
- *    | So sánh khác địa chỉ                 | `a != b`                       | `a !== b`      |
+ *    | So sánh cùng địa chỉ tham chiếu      | `a == b`                       | `a === b`      |
+ *    | So sánh khác địa chỉ tham chiếu      | `a != b`                       | `a !== b`      |
  *
  * 3. SPRING KOTLIN CORNER:
  *    - Trong Spring Boot Controller / Service, khi kiểm tra `if (request.role == "ADMIN")` hoặc
@@ -45,7 +45,7 @@ fun main() {
     // =================================================================
     // 1. String Pool vs Cấp phát mới trên Heap: Kiểm chứng `==` và `===`
     // =================================================================
-    println("1. [String Pool vs Heap] Phân biệt rõ `==` (nội dung) và `===` (địa chỉ ô nhớ):")
+    println("1. [String Pool vs Heap] Phan biet ro `==` (noi dung) va `===` (dia chi tham chieu):")
 
     // s1 và s2 cùng trỏ tới 1 hằng chuỗi duy nhất trong String Pool (trên Heap)
     val s1: String = "KotlinSpring"
@@ -54,16 +54,18 @@ fun main() {
     // s3 được khởi tạo tường minh bằng constructor -> ép JVM cấp phát một Object MỚI trên Heap
     val s3: String = String(charArrayOf('K', 'o', 't', 'l', 'i', 'n', 'S', 'p', 'r', 'i', 'n', 'g'))
 
+    check(s1 == s2 && s1 === s2)
+    check(s1 == s3 && s1 !== s3)
     println("   -> s1 = \"$s1\", s2 = \"$s2\", s3 = \"$s3\"")
-    println("   -> [s1 == s2]  (So sánh nội dung):  ${s1 == s2}")
-    println("   -> [s1 === s2] (So sánh địa chỉ):   ${s1 === s2} (Cùng trỏ vào String Pool)")
-    println("   -> [s1 == s3]  (So sánh nội dung):  ${s1 == s3} (Nội dung giống hệt nhau -> dùng `==` luôn an toàn!)")
-    println("   -> [s1 === s3] (So sánh địa chỉ):   ${s1 === s3} (Khác địa chỉ: s1 ở String Pool, s3 là Object mới trên Heap)\n")
+    println("   -> [s1 == s2]  (So sanh noi dung):  ${s1 == s2}")
+    println("   -> [s1 === s2] (So sanh dia chi):   ${s1 === s2} (Cung tro vao String Pool)")
+    println("   -> [s1 == s3]  (So sanh noi dung):  ${s1 == s3} (Noi dung giong het nhau -> dung `==` an toan!)")
+    println("   -> [s1 === s3] (So sanh dia chi):   ${s1 === s3} (Khac dia chi: s1 o String Pool, s3 la Object moi tren Heap)\n")
 
     // =================================================================
     // 2. An toàn với Null khi dùng `==` trong Kotlin
     // =================================================================
-    println("2. [Null-Safe Equality] Phép `a == b` không bao giờ ném NullPointerException:")
+    println("2. [Null-Safe Equality] Phep `a == b` khong nem NullPointerException:")
     val nullStr: String? = null
     val validStr: String? = "ADMIN"
 
@@ -75,27 +77,28 @@ fun main() {
     // =================================================================
     // 3. Bẫy Integer Cache (-128 đến 127) của JVM khi dùng `===` với kiểu Nullable `Int?`
     // =================================================================
-    println("3. [JVM Integer Cache Trap] Điều gì xảy ra khi dùng `===` với `Int?` (Boxed Integer):")
+    println("3. [JVM Integer Cache Trap] Dieu gi xay ra khi dung `===` voi `Int?` (Boxed Integer):")
     val a1: Int? = 100
     val a2: Int? = 100
     val b1: Int? = 10_000
     val b2: Int? = 10_000
 
-    println("   -> Với số 100 (nằm trong Integer Cache -128..127):")
-    println("      a1 == a2  là ${a1 == a2}  | a1 === a2 là ${a1 === a2} (JVM tái sử dụng cùng 1 Integer trong cache)")
-    println("   -> Với số 10_000 (nằm ngoài Integer Cache):")
-    println("      b1 == b2  là ${b1 == b2}  | b1 === b2 là ${b1 === b2} (2 đối tượng Integer khác địa chỉ trên Heap!)")
-    println("   => KẾT LUẬN: Luôn dùng `==` để so sánh giá trị! Chỉ dùng `===` khi thực sự muốn kiểm tra 2 biến có trỏ tới đúng 1 instance duy nhất hay không.\n")
+    println("   -> Voi so 100 (nam trong Integer Cache -128..127):")
+    println("      a1 == a2  la ${a1 == a2}  | a1 === a2 la ${a1 === a2} (JVM tai su dung cung 1 Integer trong cache)")
+    println("   -> Voi so 10_000 (nam ngoai Integer Cache):")
+    println("      b1 == b2  la ${b1 == b2}  | b1 === b2 la ${b1 === b2} (2 doi tuong Integer khac dia chi tren Heap!)")
+    println("   => KET LUAN: Nen dung `==` de so sanh gia tri; chi dung `===` khi muon kiem tra 2 bien co tro toi cung 1 instance hay khong.\n")
 
     // =================================================================
     // 4. So sánh 2 đối tượng DTO trên Heap
     // =================================================================
-    println("4. [Object Equality] So sánh 2 đối tượng DTO khác địa chỉ nhưng cùng dữ liệu:")
-    val dto1 = ProductDto(id = 101L, name = "Bàn phím cơ Keychron")
-    val dto2 = ProductDto(id = 101L, name = "Bàn phím cơ Keychron")
+    println("4. [Object Equality] So sanh 2 doi tuong DTO khac dia chi nhung cung du lieu:")
+    val dto1 = ProductDto(id = 101L, name = "Ban phim co Keychron")
+    val dto2 = ProductDto(id = 101L, name = "Ban phim co Keychron")
 
-    println("   -> dto1 == dto2  (Structural - gọi equals()): ${dto1 == dto2}")
-    println("   -> dto1 === dto2 (Referential - so địa chỉ):  ${dto1 === dto2}")
+    check(dto1 == dto2 && dto1 !== dto2)
+    println("   -> dto1 == dto2  (Structural - goi equals()): ${dto1 == dto2}")
+    println("   -> dto1 === dto2 (Referential - so dia chi):  ${dto1 === dto2}")
 
     println("\n--- ___ * END: Ex05EqualityAndMemoryPool * ___ ---")
 }
