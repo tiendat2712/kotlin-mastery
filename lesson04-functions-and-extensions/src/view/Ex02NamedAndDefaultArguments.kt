@@ -7,21 +7,21 @@ package view
  *
  * 1. BẢN CHẤT (UNDER THE HOOD / BYTECODE):
  *    - Trong Java (`Ex01OverloadDemo.java` và `Ex02BuilderDemo.java` ở `D:\Java_Journey`):
- *      + Vì Java KHÔNG có tham số mặc định (Default Arguments), bạn buộc phải viết 3-4 hàm trùng tên
- *        (Telescoping Method Overloading) gọi chồng chéo nhau, hoặc phải viết cả một class `Builder` dài hàng chục dòng!
- *      + Ngoài ra, khi gọi hàm có nhiều tham số cùng kiểu `createUser("An", "Nguyễn", true, false, true)`,
- *        người đọc code Java không thể biết `true, false, true` nghĩa là gì!
+ *      + Vì Java KHÔNG có tham số mặc định (Default Arguments), bạn thường phải viết 3-4 hàm trùng tên
+ *        (Telescoping Method Overloading) gọi chồng chéo nhau, hoặc viết thêm một class `Builder` dài dòng.
+ *      + Ngoài ra, khi gọi hàm có nhiều tham số cùng kiểu `createUser("An", "Nguyen", true, false, true)`,
+ *        người đọc code Java rất khó biết `true, false, true` nghĩa là gì!
  *    - Trong Kotlin:
  *      + **Default Arguments (`page: Int = 1, size: Int = 20`)**: Cho phép gán giá trị mặc định ngay tại nơi khai báo hàm.
  *        Dưới tầng Bytecode, Kotlin sinh ra một hàm tổng hợp `findOrders$default(..., int mask, Object marker)`
  *        sử dụng bitmask để biết tham số nào bị khuyết và tự động điền giá trị mặc định!
  *      + **Named Arguments (`findOrders(size = 50, status = "DELIVERED")`)**: Cho phép chỉ định rõ tên tham số
- *        khi gọi hàm và **đổi thứ tự tham số tùy ý** mà không sợ truyền nhầm!
+ *        khi gọi hàm và **đổi thứ tự tham số linh hoạt** mà không sợ truyền nhầm!
  *      + **`vararg` và toán tử Spread (`*`)**: Tương đương `String... tags` của Java, nhưng khi truyền một mảng có sẵn
  *        vào vị trí `vararg`, Kotlin yêu cầu dùng dấu sao `*array` (Spread operator) để phân biệt rõ ràng!
  *
  * 2. SO SÁNH JAVA BUILDER PATTERN VS KOTLIN NAMED + DEFAULT ARGUMENTS:
- *    - Một `data class` hoặc hàm khởi tạo trong Kotlin có Default + Named Arguments **thay thế hoàn toàn 100%
+ *    - Một `data class` hoặc hàm khởi tạo trong Kotlin có Default + Named Arguments **thay thế phần lớn
  *      nhu cầu viết Builder Pattern thủ công hay dùng `@Builder` của Lombok** trong Java!
  *
  * 3. SPRING KOTLIN CORNER:
@@ -31,7 +31,7 @@ package view
  * =====================================================================
  */
 
-// Thay thế hoàn toàn Builder Pattern (`Ex02BuilderDemo.java`) chỉ bằng 1 Constructor có Default Values!
+// Thay thế nhu cầu viết Builder Pattern (`Ex02BuilderDemo.java`) bằng Constructor có Default Values!
 private data class HttpClientOptions(
     val baseUrl: String,
     val connectTimeoutMs: Int = 5_000,
@@ -45,9 +45,9 @@ fun main() {
     println("--- ___ * START: Ex02NamedAndDefaultArguments * ___ ---\n")
 
     // =================================================================
-    // 1. Default Arguments: Khai tử Telescoping Overloads của Java
+    // 1. Default Arguments: Giảm thiểu Telescoping Overloads của Java
     // =================================================================
-    println("1. [Default Arguments] Gọi cùng 1 hàm với số lượng đối số linh hoạt:")
+    println("1. [Default Arguments] Goi cung 1 ham voi so luong doi so linh hoat:")
     // Gọi không truyền gì -> lấy toàn bộ mặc định (status="ALL", page=1, size=20, sortBy="createdAt")
     findOrders()
 
@@ -61,8 +61,8 @@ fun main() {
     // =================================================================
     // 2. Named Arguments: Gọi đích danh tên tham số & Đổi thứ tự tùy ý
     // =================================================================
-    println("2. [Named Arguments] Chỉ định rõ tên tham số — Tự giải thích nghĩa (Self-documenting):")
-    // Bỏ qua `page`, chỉ truyền `size` và `status` theo thứ tự đảo ngược vẫn chạy chính xác 100%!
+    println("2. [Named Arguments] Chi dinh ro ten tham so - Tu giai thich nghia (Self-documenting):")
+    // Bỏ qua `page`, chỉ truyền `size` và `status` theo thứ tự đảo ngược vẫn chạy chính xác!
     findOrders(
         size = 50,
         status = "DELIVERED",
@@ -71,21 +71,22 @@ fun main() {
     println()
 
     // =================================================================
-    // 3. Khai tử Java Builder Pattern bằng Named + Default Arguments
+    // 3. Thay thế Java Builder Pattern bằng Named + Default Arguments
     // =================================================================
-    println("3. [Goodbye Java Builder] Khởi tạo Object nhiều tham số cực kỳ tường minh:")
+    println("3. [Goodbye Java Builder] Khoi tao Object nhieu tham so cuc ky tuong minh:")
     val customClient = HttpClientOptions(
         baseUrl = "https://api.payment.vn/v2",
         readTimeoutMs = 30_000,
         retryOnFailure = false
         // connectTimeoutMs, enableGzip, maxConnections tự động nhận giá trị mặc định!
     )
-    println("   -> Cấu hình HTTP Client: $customClient\n")
+    check(customClient.connectTimeoutMs == 5_000 && customClient.readTimeoutMs == 30_000 && !customClient.retryOnFailure)
+    println("   -> Cau hinh HTTP Client: $customClient\n")
 
     // =================================================================
     // 4. Tham số `vararg` và Toán tử trải mảng Spread Operator (`*`)
     // =================================================================
-    println("4. [vararg & Spread Operator `*`] Truyền số lượng đối số tùy ý và giải nén mảng:")
+    println("4. [vararg & Spread Operator `*`] Truyen so luong doi so tuy y va giai nen mang:")
     // 4a. Truyền rời từng chuỗi
     logAuditTags(prefix = "ORDER_SERVICE", "CREATE", "PAYMENT_VERIFIED", "INVENTORY_LOCKED")
 

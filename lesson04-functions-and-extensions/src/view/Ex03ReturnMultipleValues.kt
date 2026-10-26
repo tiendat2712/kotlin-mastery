@@ -21,12 +21,12 @@ package view
  *      + Cơ chế này dựa trên các hàm `operator fun component1()`, `component2()`... được Kotlin tự động sinh ra
  *        cho `Pair`, `Triple`, và mọi **`data class`**!
  *
- * 2. KHI NÀO DÙNG `Pair`/`Triple` VÀ KHI NÀO PHẢI DÙNG `data class`?
+ * 2. KHI NÀO DÙNG `Pair`/`Triple` VÀ KHI NÀO NÊN DÙNG `data class`?
  *    - `Pair` / `Triple` rất tiện cho các phép biến đổi cục bộ ngắn hạn (như trong pipeline `.map { ... }`).
  *    - **NHƯNG trong Public API / tầng `@Service` của Production**:
- *      Hãy luôn ưu tiên tạo một **`data class`** có tên rõ nghĩa (ví dụ: `data class StatsResult(val min: Int, val max: Int, val avg: Double)`)!
+ *      Nên ưu tiên tạo một **`data class`** có tên rõ nghĩa (ví dụ: `data class StatsResult(val min: Int, val max: Int, val avg: Double)`)!
  *      Lý do:
- *      1) Đọc `result.min` và `result.avg` dễ hiểu hơn gấp vạn lần so với `result.first` và `result.third`!
+ *      1) Đọc `result.min` và `result.avg` dễ hiểu hơn rất nhiều so với `result.first` và `result.third`!
  *      2) Với `Int`, `Pair<Int, Int>` phải **Box** thành `Integer` trên Heap (vì `Pair<A, B>` dùng Generic),
  *         trong khi `data class` có thuộc tính `val min: Int` lưu thẳng kiểu nguyên thủy `int` tốc độ cao!
  * =====================================================================
@@ -45,38 +45,41 @@ fun main() {
     // =================================================================
     // 1. Trả về 2 giá trị bằng `Pair<A, B>` và giải nén (Destructuring)
     // =================================================================
-    println("1. [Pair & Destructuring] Trả về 2 giá trị từ hàm và bóc tách trực tiếp:")
+    println("1. [Pair & Destructuring] Tra ve 2 gia tri tu ham va boc tach truc tiep:")
     val divisionPair: Pair<Int, Int> = divideWithRemainder(dividend = 17, divisor = 5)
-    println("   -> Truy cập qua thuộc tính Pair: first=${divisionPair.first}, second=${divisionPair.second}")
+    println("   -> Truy cap qua thuoc tinh Pair: first=${divisionPair.first}, second=${divisionPair.second}")
 
     // Giải nén (Destructuring) ngay lập tức ra 2 biến có tên rõ ràng:
     val (quotient, remainder) = divideWithRemainder(dividend = 17, divisor = 5)
-    println("   -> Giải nén Destructuring: 17 chia 5 được thương = $quotient, dư = $remainder\n")
+    check(quotient == 3 && remainder == 2)
+    println("   -> Giai nen Destructuring: 17 chia 5 duoc thuong = $quotient, du = $remainder\n")
 
     // =================================================================
     // 2. Trả về 3 giá trị bằng `Triple<A, B, C>` (và dấu `_` bỏ qua thành phần không cần dùng)
     // =================================================================
-    println("2. [Triple & Underscore `_`] Trả về 3 giá trị và bỏ qua biến không dùng bằng dấu `_`:")
+    println("2. [Triple & Underscore `_`] Tra ve 3 gia tri va bo qua bien khong dung bang dau `_`:")
     val (host, port, protocol) = parseEndpoint("https://api.kotlinjourney.vn:8443")
-    println("   -> Bóc tách đủ 3 phần: protocol=$protocol | host=$host | port=$port")
+    check(host == "api.kotlinjourney.vn" && port == 8443 && protocol == "https")
+    println("   -> Boc tach du 3 phan: protocol=$protocol | host=$host | port=$port")
 
     // Nếu chỉ cần lấy `host` và `port`, dùng dấu gạch dưới `_` ở vị trí thứ 3 để trình biên dịch không gọi `component3()`!
     val (onlyHost, onlyPort, _) = parseEndpoint("http://localhost:8080")
-    println("   -> Bỏ qua phần tử thứ 3 bằng `_`: onlyHost=$onlyHost, onlyPort=$onlyPort\n")
+    println("   -> Bo qua phan tu thu 3 bang `_`: onlyHost=$onlyHost, onlyPort=$onlyPort\n")
 
     // =================================================================
     // 3. [Production Best Practice] Dùng `data class` thay cho `Triple`
     // =================================================================
-    println("3. [Production Best Practice] Tại sao `data class` vượt trội hơn `Triple` ở tầng Nghiệp vụ:")
+    println("3. [Production Best Practice] Tai sao `data class` vuot troi hon `Triple` o tang Nghiep vu:")
     val orderValues = listOf(150_000, 300_000, 450_000, 900_000)
     val stats: OrderStatsResult = calculateOrderStats(orderValues)
 
     // Vừa có thể truy cập bằng tên thuộc tính tường minh (.minOrder, .maxOrder, .avgOrder)...
-    println("   -> Truy cập theo tên thuộc tính: min=${stats.minOrder}, max=${stats.maxOrder}, avg=${stats.avgOrder}")
+    println("   -> Truy cap theo ten thuoc tinh: min=${stats.minOrder}, max=${stats.maxOrder}, avg=${stats.avgOrder}")
 
     // ...lại vừa hỗ trợ Destructuring giống hệt Triple nhờ `data class` tự sinh hàm component1(), component2(), component3()!
     val (minVal, maxVal, avgVal) = stats
-    println("   -> Giải nén từ data class:       min=$minVal, max=$maxVal, avg=$avgVal")
+    check(minVal == 150_000 && maxVal == 900_000 && avgVal == 450_000.0)
+    println("   -> Giai nen tu data class:       min=$minVal, max=$maxVal, avg=$avgVal")
 
     println("\n--- ___ * END: Ex03ReturnMultipleValues * ___ ---")
 }

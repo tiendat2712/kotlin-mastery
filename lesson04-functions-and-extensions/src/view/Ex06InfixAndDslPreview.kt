@@ -10,7 +10,7 @@ package view
  *      khi thêm từ khóa `infix` ở đầu sẽ cho phép gọi theo cú pháp trung tố (bỏ dấu chấm `.` và dấu ngoặc tròn `()`):
  *      + Gọi thường: `1.until(10)`, `"key".to("value")`, `amount.shouldBeGreaterThan(0)`
  *      + Gọi `infix`: `1 until 10`, `"key" to "value"`, `amount shouldBeGreaterThan 0`
- *    - Điều kiện bắt buộc của hàm `infix`:
+ *    - Điều kiện của hàm `infix`:
  *      1) Phải là phương thức của class hoặc Extension Function.
  *      2) Phải có **đúng 1 tham số duy nhất**.
  *      3) Tham số đó không được là `vararg` và không có giá trị mặc định.
@@ -23,8 +23,8 @@ package view
  *          post("/create")
  *      }
  *      ```
- *      Nhiều lập trình viên Java thắc mắc: *"Đây là file cấu hình đặc biệt hay cú pháp ma thuật gì?"*
- *    - **Câu trả lời**: Đó là **100% code Kotlin thuần túy** được tạo bởi sự kết hợp giữa:
+ *      Nhiều lập trình viên Java thắc mắc: "Đây là file cấu hình đặc biệt hay cú pháp ma thuật gì?"
+ *    - **Câu trả lời**: Đó là **code Kotlin thuần túy** được tạo bởi sự kết hợp giữa:
  *      1) **Trailing Lambda** (đưa `{ ... }` ra ngoài ngoặc tròn).
  *      2) **Lambda with Receiver (`block: RouteBuilder.() -> Unit`)**: Thay vì truyền `(RouteBuilder) -> Unit`
  *         (bắt người dùng phải gõ `it.get(...)`), kiểu `RouteBuilder.() -> Unit` biến đối tượng `RouteBuilder`
@@ -49,9 +49,9 @@ private infix fun Int.timesRepeat(text: String): String = text.repeat(this)
 // Mô phỏng thư viện Assertion trong Unit Test (như Kotest `actual shouldBe expected`)
 private infix fun <T> T.shouldBe(expected: T) {
     if (this == expected) {
-        println("   -> [ASSERT PASS] Giá trị thực tế ($this) khớp với kỳ vọng ($expected)")
+        println("   -> [ASSERT PASS] Gia tri thuc te ($this) khop voi ky vong ($expected)")
     } else {
-        throw AssertionError("Kỳ vọng $expected nhưng nhận được $this")
+        throw AssertionError("Ky vong $expected nhung nhan duoc $this")
     }
 }
 
@@ -101,9 +101,9 @@ fun main() {
     // =================================================================
     // 1. Sử dụng hàm `infix` tự định nghĩa và hàm `infix` chuẩn
     // =================================================================
-    println("1. [Infix Functions] Gọi hàm không cần dấu chấm `.` và dấu ngoặc `()`:")
+    println("1. [Infix Functions] Goi ham khong can dau cham `.` va dau ngoac `()`:")
     val banner = 3 timesRepeat "Kotlin! "
-    println("   -> Kết quả `3 timesRepeat \"Kotlin! \"`: $banner")
+    println("   -> Ket qua `3 timesRepeat \"Kotlin! \"`: $banner")
 
     // Infix `to` tạo Pair và Infix `shouldBe` trong Unit Test DSL:
     val statusPair = "HTTP_OK" to 200
@@ -113,7 +113,7 @@ fun main() {
     // =================================================================
     // 2. Giải mã `buildString` (Lambda with Receiver `StringBuilder.() -> Unit` có sẵn)
     // =================================================================
-    println("2. [Standard Library DSL: buildString] Bên trong `{ ... }`, `this` chính là `StringBuilder`:")
+    println("2. [Standard Library DSL: buildString] Ben trong `{ ... }`, `this` chinh la `StringBuilder`:")
     val sqlQuery = buildString {
         // `append` và `appendLine` là phương thức của `this` (StringBuilder)
         appendLine("SELECT u.id, u.email")
@@ -126,16 +126,17 @@ fun main() {
     // =================================================================
     // 3. Tự tay sử dụng Mini Spring Router DSL vừa xây dựng ở trên!
     // =================================================================
-    println("3. [Custom Spring Router DSL] Cách hoạt động của `route(\"/api/v1/users\") { ... }`:")
+    println("3. [Custom Spring Router DSL] Cach hoat dong cua `route(\"/api/v1/users\") { ... }`:")
 
     // Nhìn đoạn code dưới đây: giống hệt Spring WebMVC.fn / WebFlux Router DSL và build.gradle.kts!
     val userRoutes: List<EndpointDefinition> = route("/api/v1/users") {
-        get("/profile", description = "Lấy thông tin hồ sơ người dùng hiện tại")
-        post("/create", description = "Đăng ký tài khoản người dùng mới")
-        delete("/{id}", description = "Xóa tài khoản theo ID")
+        get("/profile", description = "Lay thong tin ho so nguoi dung hien tai")
+        post("/create", description = "Dang ky tai khoan nguoi dung moi")
+        delete("/{id}", description = "Xoa tai khoan theo ID")
     }
+    check(userRoutes.size == 3 && userRoutes[0].fullPath == "/api/v1/users/profile")
 
-    println("   -> Các Endpoint đã đăng ký thành công qua Kotlin DSL:")
+    println("   -> Cac Endpoint da dang ky thanh cong qua Kotlin DSL:")
     for (ep in userRoutes) {
         println("      [${ep.method.padEnd(6)}] ${ep.fullPath.padEnd(25)} -> ${ep.description}")
     }
