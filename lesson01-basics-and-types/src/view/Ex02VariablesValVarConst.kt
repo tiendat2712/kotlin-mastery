@@ -29,10 +29,13 @@ package view
  *    - **Trường hợp 2 — Thuộc tính của đối tượng (Object properties / fields)**:
  *      + Các thuộc tính `val cartId: String` hay `var totalAmount: Long` bên trong `class ShoppingCart` có backing field
  *        nằm trực tiếp **bên trong thực thể `ShoppingCart` trên HEAP**, KHÔNG nằm trên Stack!
- *    - **Trường hợp 3 — Biến cục bộ bị Closure / Lambda bắt giữ (Captured local variable)**:
- *      + Nếu một biến cục bộ `var clickCount = 0` trong hàm bị một Lambda bắt giữ và thay đổi giá trị, trình biên dịch
- *        Kotlin sẽ tự động bọc nó vào một đối tượng hộp (`kotlin.jvm.internal.Ref$IntRef`) cấp phát trên **HEAP**
- *        để cả hàm bao ngoài và Lambda cùng trỏ tới!
+ *    - **Trường hợp 3 — Biến cục bộ `var` bị Closure (Non-inline Lambda) bắt giữ**:
+ *      + Nếu một biến cục bộ `var clickCount = 0` trong hàm bị bắt giữ và sửa đổi bởi một Lambda **không được inline**
+ *        (ví dụ: Lambda được gán vào biến `val fn: () -> Unit`, lưu vào danh sách callback, hoặc truyền vào hàm thường),
+ *        trình biên dịch Kotlin sẽ bọc nó vào một đối tượng hộp (`Ref.IntRef` cho `Int`, hoặc `Ref.ObjectRef<T>` cho
+ *        kiểu đối tượng) trên **HEAP** để cả hàm bao ngoài và đối tượng Closure cùng truy cập!
+ *      + *(Lưu ý: Nếu Lambda được truyền vào một `inline fun` như `.forEach { ... }`, thân Lambda được chép thẳng vào
+ *        hàm gọi nên biến cục bộ vẫn thao tác trực tiếp trên Stack Frame mà không cần hộp `Ref` — xem chi tiết ở `lesson04/Ex07`)*.
  *
  * 3. PHÂN BIỆT 3 CẤP ĐỘ: READ-ONLY VS SHALLOW IMMUTABILITY VS DEEP IMMUTABILITY:
  *    - **Read-only (`val` / `List<T>`)**: Chỉ khóa việc gán lại biến (`=`) hoặc ẩn các hàm sửa đổi trên bề mặt interface.
