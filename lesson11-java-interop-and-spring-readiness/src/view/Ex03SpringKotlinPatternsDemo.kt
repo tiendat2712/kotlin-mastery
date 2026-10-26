@@ -3,44 +3,55 @@ package view
 import java.time.LocalDateTime
 
 /**
- * BÀI 03: TỔNG HỢP KIẾN TRÚC SPRING BOOT KOTLIN TRONG THỰC TẾ (ENTITY -> REPOSITORY -> SERVICE -> CONTROLLER)
+ * BÀI 03: MÔ PHỎNG TỔ CHỨC LỚP THEO PHONG CÁCH SPRING BOOT KOTLIN (ENTITY -> REPOSITORY -> SERVICE -> CONTROLLER)
  *
- * Bài học này là bức tranh ghép hoàn chỉnh (Blueprint) kết nối tất cả những gì bạn đã học từ Bài 01 đến Bài 11
- * vào một luồng xử lý chuẩn mực của **Spring Boot + Spring Data JPA + Bean Validation + Kotlin**.
+ * [LƯU Ý QUAN TRỌNG VỀ PHẠM VI MÔ PHỎNG TRONG FILE NÀY]:
+ * - Toàn bộ các annotation (`@Entity`, `@Service`, `@Transactional`, `@RestController`, `@NotBlank`) và
+ *   `InMemoryUserRepository` bên dưới là **mô phỏng thuần Kotlin phục vụ học tập (pure Kotlin educational simulation)**
+ *   để minh họa cách tổ chức lớp, Constructor Injection, Extension Mapper và Null-safety.
+ * - File này **KHÔNG** khởi chạy Spring IoC/DI Container thật, **KHÔNG** chạy Hibernate/JPA hay Database Transaction thật,
+ *   **KHÔNG** chạy bộ kiểm tra Jakarta Bean Validation tự động và **KHÔNG** mở cổng HTTP Server.
  *
- * 1. HAI COMPILER PLUGINS BẮT BUỘC TRONG `build.gradle.kts` CỦA DỰ ÁN SPRING BOOT KOTLIN:
- *    a) **`kotlin("plugin.spring")` (tên khác: `all-open` plugin)**:
- *       - *Vấn đề*: Trong Kotlin, mọi `class` và `fun` mặc định là **`final`**! Nhưng Spring AOP
- *         (`@Configuration`, `@Service`, `@Transactional`, `@Async`, `@Cacheable`) lại dùng **CGLIB Proxy**
- *         tạo một lớp con kế thừa từ class của bạn lúc Runtime để chèn logic Transaction/Security!
- *         Nếu class là `final`, CGLIB sẽ báo lỗi: *"Cannot subclass final class UserService"*!
- *       - *Giải pháp*: Plugin `kotlin("plugin.spring")` tự động thêm từ khóa `open` vào Bytecode cho mọi class/method
- *         có gắn `@Component`, `@Service`, `@Repository`, `@Controller`, `@Configuration`, `@Transactional`
- *         mà bạn không cần tự gõ chữ `open` làm xấu code!
+ * 1. HAI COMPILER PLUGINS QUAN TRỌNG TRONG `build.gradle.kts` CỦA DỰ ÁN SPRING BOOT KOTLIN THỰC TẾ:
+ *    a) **`kotlin("plugin.spring")` (tức `all-open` plugin cấu hình sẵn cho Spring)**:
+ *       - *Bối cảnh*: Trong Kotlin, mọi `class` và `fun` mặc định là **`final`**. Trong khi đó, đối với các class
+ *         như `@Configuration`, `@Service`, `@Transactional` (đặc biệt khi tạo class-based proxy bằng CGLIB,
+ *         vốn là cơ chế proxy mặc định trong Spring Boot khi không proxy thuần qua JDK interface), Spring cần
+ *         tạo lớp con kế thừa từ class của bạn lúc Runtime để đan (weave) logic Transaction/Security/AOP.
+ *         Nếu class hoặc hàm là `final`, CGLIB proxy sẽ không thể kế thừa hoặc ghi đè hàm đó!
+ *       - *Vai trò của plugin*: `kotlin("plugin.spring")` tự động mở (`open`) ở tầng Bytecode cho các class/method
+ *         có gắn `@Component`, `@Service`, `@Repository`, `@Controller`, `@Configuration`, `@Transactional`, `@Async`, `@Cacheable`
+ *         mà bạn không cần phải gõ từ khóa `open` thủ công trong mã nguồn.
  *
- *    b) **`kotlin("plugin.jpa")` (tên khác: `no-arg` plugin)**:
- *       - *Vấn đề*: Hibernate/JPA bắt buộc mọi `@Entity` phải có một **Default No-Arg Constructor** (`protected` hoặc `public`)
- *         để khởi tạo đối tượng qua Reflection khi đọc từ DB, đồng thời `@Entity` không được `final` để hỗ trợ Lazy Loading Proxy.
- *       - *Giải pháp*: Plugin `kotlin("plugin.jpa")` tự động sinh thêm một constructor không tham số ẩn trong Bytecode
- *         cho các class gắn `@Entity`, `@MappedSuperclass`, `@Embeddable`!
+ *    b) **`kotlin("plugin.jpa")` (tức `no-arg` plugin cấu hình sẵn cho JPA)**:
+ *       - *Bối cảnh*: Đặc tả JPA/Hibernate yêu cầu các lớp `@Entity`, `@Embeddable`, `@MappedSuperclass` phải có
+ *         một **No-Arg Constructor** (`protected` hoặc `public`) để ORM khởi tạo đối tượng qua Reflection khi đọc dữ liệu từ DB.
+ *       - *Vai trò của plugin*: `kotlin("plugin.jpa")` tự động sinh thêm một constructor không tham số tổng hợp (synthetic)
+ *         trong Bytecode cho các lớp gắn `@Entity`, `@MappedSuperclass`, `@Embeddable` (đồng thời kết hợp tốt với `all-open`
+ *         để tránh `final` làm cản trở Lazy Loading Proxy của Hibernate).
  *
- * 2. NĂM QUY TẮC VÀNG (BEST PRACTICES) TRONG SPRING BOOT KOTLIN:
- *    - **Quy tắc 1 (Constructor Injection)**: Không dùng `@Autowired lateinit var`. Luôn khai báo dependencies
- *      trong Primary Constructor với `private val`:
- *      `class UserService(private val userRepository: UserRepository)`
- *    - **Quy tắc 2 (JPA Entity)**: **KHÔNG dùng `data class` cho `@Entity`**! Dùng `class` thường (hoặc `open class`),
- *      các trường có thể thay đổi khai báo `var`, và cài đặt `equals`/`hashCode` chỉ dựa trên khóa chính `id`.
- *    - **Quy tắc 3 (Request/Response DTO)**: **LUÔN dùng `data class` với toàn bộ thuộc tính là `val` (Immutable)**,
- *      và nhớ gắn **`@field:NotBlank`**, **`@field:Email`**, **`@field:Valid`**!
- *    - **Quy tắc 4 (Mapper)**: Thay vì tạo class `UserMapper` rườm rà hay cấu hình MapStruct phức tạp,
- *      hãy dùng **Extension Functions**: `fun UserEntity.toResponse(): UserResponse`.
- *    - **Quy tắc 5 (Null-safety trong Repository)**: Khai báo hàm trong Spring Data Repository trả về trực tiếp
- *      kiểu Nullable `fun findByEmail(email: String): UserEntity?` (thay vì `Optional<UserEntity>` của Java),
- *      sau đó kết hợp toán tử Elvis: `val user = userRepository.findByIdOrNull(id) ?: throw NotFoundException(...)`!
+ * 2. NĂM MẪU THIẾT KẾ (PATTERNS) PHỔ BIẾN TRONG SPRING BOOT KOTLIN:
+ *    - **Mẫu 1 (Constructor Injection)**: Ưu tiên khai báo dependencies trực tiếp trong Primary Constructor với `private val`:
+ *      `class UserService(private val userRepository: UserRepository)` (tránh lạm dụng `@Autowired lateinit var`).
+ *    - **Mẫu 2 (JPA Entity & Lưu ý về `equals`/`hashCode`)**:
+ *      + Tránh dùng `data class` cho JPA `@Entity` có trạng thái thay đổi hoặc quan hệ Lazy.
+ *      + **Lưu ý kỹ thuật rất quan trọng về `hashCode()` của Entity**:
+ *        * Trong ví dụ mô phỏng bên dưới, `UserEntity` có `val id: String` được cấp sẵn trong bộ nhớ **trước khi lưu**
+ *          và không bao giờ đổi (`val`), nên viết `override fun hashCode() = id.hashCode()` là an toàn.
+ *        * Tuy nhiên, trong dự án JPA thực tế dùng khóa tự tăng từ DB (`@Id @GeneratedValue var id: Long? = null`),
+ *          `id` sẽ chuyển từ `null` sang số khác `null` sau khi `persist()`. Nếu dùng `id.hashCode()` trực tiếp,
+ *          mã băm của đối tượng sẽ bị thay đổi khi nằm trong `HashSet` / `HashMap`! Khi đó, người ta thường dùng
+ *          hằng số theo lớp (`javaClass.hashCode()`), khóa tự nhiên bất biến (`@NaturalId`), hoặc UUID sinh sẵn phía ứng dụng.
+ *    - **Mẫu 3 (Request/Response DTO)**: Thường dùng `data class` với các thuộc tính `val` (bất biến nông - shallow immutability),
+ *      kết hợp `@field:NotBlank`, `@field:Email`, `@field:Valid` khi làm việc với Jakarta Validation.
+ *    - **Mẫu 4 (Extension Mapper)**: Dùng **Extension Functions** (`fun UserEntity.toResponse(): UserResponse`)
+ *      cho các phép ánh xạ DTO <-> Entity gọn nhẹ, dễ test.
+ *    - **Mẫu 5 (Null-safety trong Repository)**: Khai báo hàm truy vấn đơn lẻ trả về kiểu Nullable `UserEntity?`
+ *      (hoặc dùng extension `findByIdOrNull(id)` của Spring Data Kotlin) kết hợp toán tử Elvis `?: throw ...`.
  */
 
 // =========================================================================
-// CÁC ANNOTATION MÔ PHỎNG SPRING BOOT & JAKARTA JPA/VALIDATION
+// CÁC ANNOTATION MÔ PHỎNG CÚ PHÁP (PURE KOTLIN SIMULATION - KHÔNG CHẠY FRAMEWORK THẬT)
 // =========================================================================
 @Target(AnnotationTarget.CLASS)
 annotation class Entity(val tableName: String)
@@ -58,17 +69,19 @@ annotation class RestController(val basePath: String)
 annotation class NotBlank(val message: String)
 
 // =========================================================================
-// 1. DOMAIN ENTITY (JPA `@Entity` — dùng `open class`, KHÔNG dùng `data class`)
+// 1. DOMAIN ENTITY (`open class`, KHÔNG dùng `data class`)
 // =========================================================================
 @Entity(tableName = "users")
 open class UserEntity(
-    val id: String,
+    val id: String, // ID sinh sẵn trước khi lưu và bất biến (`val`)
     var fullName: String,
     var email: String,
     var active: Boolean = true,
     val createdAt: LocalDateTime = LocalDateTime.now()
 ) {
-    // Trong JPA Entity, chỉ so sánh equals/hashCode theo ID để không làm hỏng Hibernate Persistence Context Set
+    // Vì `id` ở đây được gán sẵn khác null từ lúc khởi tạo và là `val` bất biến,
+    // ta có thể dùng `id` cho equals/hashCode. (Nếu dùng @GeneratedValue var id: Long? = null của JPA,
+    // chỉ nên so sánh khi id != null và trả về javaClass.hashCode() để giữ bất biến bucket trong Set!).
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is UserEntity) return false
@@ -81,13 +94,13 @@ open class UserEntity(
 }
 
 // =========================================================================
-// 2. REQUEST / RESPONSE DTOs (Dùng `data class` bất biến `val` + `@field:`)
+// 2. REQUEST / RESPONSE DTOs (Dùng `data class` với `val` + `@field:`)
 // =========================================================================
 data class CreateUserRequest(
-    @field:NotBlank(message = "Họ tên không được để trống")
+    @field:NotBlank(message = "Ho ten khong duoc de trong")
     val fullName: String,
 
-    @field:NotBlank(message = "Email không được để trống")
+    @field:NotBlank(message = "Email khong duoc de trong")
     val email: String
 )
 
@@ -111,7 +124,7 @@ data class ApiResponse<out T>(
 }
 
 // =========================================================================
-// 3. EXTENSION MAPPER (Thay thế các class Mapper boilerplate trong Java)
+// 3. EXTENSION MAPPER (Thay thế các class Mapper boilerplate đơn giản)
 // =========================================================================
 fun UserEntity.toResponse(): UserResponse = UserResponse(
     id = this.id,
@@ -154,7 +167,7 @@ class DuplicateResourceException(message: String) : RuntimeException(message)
 
 @Service
 open class UserService(
-    private val userRepository: UserRepository // Constructor Injection chuẩn Spring!
+    private val userRepository: UserRepository // Constructor Injection
 ) {
     private var sequence = 1
 
@@ -163,11 +176,11 @@ open class UserService(
         val normalizedName = request.fullName.trim().replace(Regex("\\s+"), " ")
         val normalizedEmail = request.email.trim().lowercase()
 
-        require(normalizedName.isNotEmpty()) { "Họ tên không hợp lệ" }
-        require(normalizedEmail.contains("@")) { "Định dạng email không hợp lệ: $normalizedEmail" }
+        require(normalizedName.isNotEmpty()) { "Ho ten khong hop le" }
+        require(normalizedEmail.contains("@")) { "Dinh dang email khong hop le: $normalizedEmail" }
 
         if (userRepository.existsByEmail(normalizedEmail)) {
-            throw DuplicateResourceException("Email '$normalizedEmail' đã được đăng ký trong hệ thống!")
+            throw DuplicateResourceException("Email '$normalizedEmail' da duoc dang ky trong he thong!")
         }
 
         val generatedId = "USR-%03d".format(sequence++)
@@ -176,30 +189,30 @@ open class UserService(
             fullName = normalizedName,
             email = normalizedEmail
         )
-        // Lưu DB và dùng Extension Function `.toResponse()` ngay trên kết quả!
+        // Lưu vào kho lưu trữ và dùng Extension Function `.toResponse()` ngay trên kết quả!
         return userRepository.save(entity).toResponse()
     }
 
     @Transactional(readOnly = true)
     open fun getUserById(id: String): UserResponse {
-        // Elvis operator `?: throw ...` thay thế hoàn toàn `.orElseThrow(() -> ...)` của Java Optional!
+        // Elvis operator `?: throw ...` thay thế gọn gàng cho `.orElseThrow(() -> ...)` của Java Optional!
         val entity = userRepository.findByIdOrNull(id.trim().uppercase())
-            ?: throw ResourceNotFoundException("Không tìm thấy người dùng với mã: $id")
+            ?: throw ResourceNotFoundException("Khong tim thay nguoi dung voi ma: $id")
         return entity.toResponse()
     }
 
     @Transactional
     open fun deactivateUser(id: String): UserResponse {
         val entity = userRepository.findByIdOrNull(id.trim().uppercase())
-            ?: throw ResourceNotFoundException("Không tìm thấy người dùng với mã: $id")
-        check(entity.active) { "Tài khoản [${entity.id}] đã bị vô hiệu hóa từ trước!" }
+            ?: throw ResourceNotFoundException("Khong tim thay nguoi dung voi ma: $id")
+        check(entity.active) { "Tai khoan [${entity.id}] da bi vo hieu hoa tu truoc!" }
         entity.active = false
         return userRepository.save(entity).toResponse()
     }
 }
 
 // =========================================================================
-// 6. CONTROLLER LAYER (`@RestController` + Global Exception Handling giả lập)
+// 6. CONTROLLER LAYER (`@RestController` + Exception Handling mô phỏng)
 // =========================================================================
 @RestController(basePath = "/api/v1/users")
 class UserController(
@@ -220,7 +233,7 @@ class UserController(
             userService.deactivateUser(id)
         }
 
-    // Mô phỏng `@RestControllerAdvice` bắt lỗi tập trung của Spring Boot
+    // Mô phỏng cách `@RestControllerAdvice` bắt lỗi tập trung và gói vào `ApiResponse<out T>`
     private inline fun <T> executeWithExceptionHandler(action: () -> T): ApiResponse<T> = try {
         ApiResponse.ok(action())
     } catch (e: Exception) {
@@ -230,36 +243,64 @@ class UserController(
 }
 
 fun main() {
-    println("--- ___ * START EX03: SPRING BOOT KOTLIN ARCHITECTURE SIMULATION * ___ ---\n")
+    println("--- ___ * START EX03: SPRING BOOT KOTLIN PATTERNS SIMULATION * ___ ---")
+    println("  [Luu y: Day la mo phong cu phap va kien truc lop bang Kotlin thuan (In-Memory),")
+    println("   KHONG khoi chay Spring IoC Container, Hibernate/JPA hay HTTP Server that.]\n")
 
-    // Khởi tạo Dependency Injection Container thủ công (tương đương Spring ApplicationContext)
+    // Khởi tạo và lắp ghép các tầng thủ công (Manual Constructor Wiring)
     val userRepository: UserRepository = InMemoryUserRepository()
     val userService = UserService(userRepository)
     val userController = UserController(userService)
 
     // 1. Tạo mới User hợp lệ
-    println("1. Gọi POST /api/v1/users (Hợp lệ):")
+    println("1. Goi createUserEndpoint (Hop le):")
     val res1 = userController.createUserEndpoint(
-        CreateUserRequest(fullName = "  Nguyễn   Minh An ", email = " AN.NGUYEN@Example.com ")
+        CreateUserRequest(fullName = "  Nguyen   Minh An ", email = " AN.NGUYEN@Example.com ")
     )
     println("  -> Response: $res1")
+    check(res1.success && res1.data?.id == "USR-001" && res1.data.email == "an.nguyen@example.com")
 
     // 2. Tạo trùng Email -> Bị chặn bởi DuplicateResourceException
-    println("\n2. Gọi POST /api/v1/users (Trùng Email):")
+    println("\n2. Goi createUserEndpoint (Trung Email):")
     val resDuplicate = userController.createUserEndpoint(
-        CreateUserRequest(fullName = "Nguyễn Văn An Khác", email = "an.nguyen@example.com")
+        CreateUserRequest(fullName = "Nguyen Van An Khac", email = "an.nguyen@example.com")
     )
     println("  -> Response: $resDuplicate")
+    check(!resDuplicate.success && resDuplicate.errorMessage?.contains("DuplicateResourceException") == true)
 
     // 3. Tra cứu User theo ID (Thành công & Không tìm thấy với Elvis `?: throw`)
-    println("\n3. Gọi GET /api/v1/users/{id}:")
-    println("  - Tìm USR-001: ${userController.getUserEndpoint("usr-001")}")
-    println("  - Tìm USR-999: ${userController.getUserEndpoint("USR-999")}")
+    println("\n3. Goi getUserEndpoint:")
+    val foundRes = userController.getUserEndpoint("usr-001")
+    val missingRes = userController.getUserEndpoint("USR-999")
+    println("  - Tim USR-001: $foundRes")
+    println("  - Tim USR-999: $missingRes")
+    check(foundRes.success && !missingRes.success)
 
     // 4. Vô hiệu hóa tài khoản & kiểm tra `check(entity.active)`
-    println("\n4. Gọi PATCH /api/v1/users/USR-001/deactivate:")
-    println("  - Lần 1 (Hợp lệ): ${userController.deactivateUserEndpoint("USR-001")}")
-    println("  - Lần 2 (Vi phạm `check` state): ${userController.deactivateUserEndpoint("USR-001")}")
+    println("\n4. Goi deactivateUserEndpoint:")
+    val deact1 = userController.deactivateUserEndpoint("USR-001")
+    val deact2 = userController.deactivateUserEndpoint("USR-001")
+    println("  - Lan 1 (Hop le): $deact1")
+    println("  - Lan 2 (Vi pham `check` state): $deact2")
+    check(deact1.success && deact1.data?.statusLabel == "DEACTIVATED")
+    check(!deact2.success && deact2.errorMessage?.contains("IllegalStateException") == true)
+
+    // =========================================================================
+    // 5. GÓC TỰ LUYỆN (ACTIVE LEARNING)
+    // =========================================================================
+    println("\n5. Goc Tu Luyen (Active Learning):")
+    // [ĐỀ BÀI]:
+    // Viết một Extension Function `fun List<UserEntity>.toActiveResponses(): List<UserResponse>`
+    // chỉ lọc ra các `UserEntity` đang `active == true` và ánh xạ sang `UserResponse` bằng `.toResponse()`.
+    userController.createUserEndpoint(CreateUserRequest("Tran Binh", "binh@example.com"))
+    val activeUsers = userRepository.findAll().toActiveResponses()
+    println("  - Danh sach User dang ACTIVE sau khi loc & map: $activeUsers")
+    check(activeUsers.size == 1 && activeUsers.first().email == "binh@example.com")
+    println("  => [PASS] Goc Tu Luyen Ex03 hoan tat!")
 
     println("\n--- ___ * END EX03 * ___ ---")
 }
+
+// [LỜI GIẢI THAM KHẢO CHO GÓC TỰ LUYỆN]:
+fun List<UserEntity>.toActiveResponses(): List<UserResponse> =
+    this.filter { it.active }.map { it.toResponse() }

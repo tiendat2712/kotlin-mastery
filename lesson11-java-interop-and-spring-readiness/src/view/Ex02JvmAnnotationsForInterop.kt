@@ -69,9 +69,9 @@ class InvoiceCalculator @JvmOverloads constructor(
     @Throws(IOException::class)
     fun exportInvoiceToFile(invoiceId: String, simulateDiskFull: Boolean) {
         if (simulateDiskFull) {
-            throw IOException("Ổ đĩa đầy khi xuất hóa đơn [$invoiceId]!")
+            throw IOException("O dia day khi xuat hoa don [$invoiceId]!")
         }
-        println("  - Đã xuất hóa đơn [$invoiceId] ra file thành công.")
+        println("  - Da xuat hoa don [$invoiceId] ra file thanh cong.")
     }
 
     companion object {
@@ -81,7 +81,7 @@ class InvoiceCalculator @JvmOverloads constructor(
 
         // @JvmStatic: Xuất thẳng thành `public static String formatCurrency(BigDecimal)` trên class InvoiceCalculator
         @JvmStatic
-        fun formatCurrency(amount: BigDecimal): String = "${amount.setScale(0)} VNĐ"
+        fun formatCurrency(amount: BigDecimal): String = "${amount.setScale(0)} VND"
     }
 }
 
@@ -91,48 +91,51 @@ fun main() {
     // =========================================================================
     // 1. KIỂM CHỨNG BYTECODE ĐƯỢC SINH RA BỞI `@JvmOverloads`, `@JvmStatic`, `@JvmField`, `@Throws`
     // =========================================================================
-    println("1. Soi JVM Bytecode của class `InvoiceCalculator` qua Java Reflection:")
+    println("1. Soi JVM Bytecode cua class `InvoiceCalculator` qua Java Reflection:")
     val clazz = InvoiceCalculator::class.java
 
-    println("  a) Các Constructor được sinh ra nhờ `@JvmOverloads constructor` (${clazz.declaredConstructors.size} constructors):")
+    println("  a) Cac Constructor duoc sinh ra nho `@JvmOverloads constructor` (${clazz.declaredConstructors.size} constructors):")
     clazz.declaredConstructors.forEach { ctor ->
         val params = ctor.parameterTypes.joinToString(", ") { it.simpleName }
         println("     - InvoiceCalculator($params)")
     }
 
-    println("\n  b) Các hàm nạp chồng `calculateTotal` được sinh ra nhờ `@JvmOverloads`:")
-    clazz.declaredMethods
-        .filter { it.name == "calculateTotal" }
-        .forEach { method ->
-            val params = method.parameterTypes.joinToString(", ") { it.simpleName }
-            println("     - ${method.returnType.simpleName} calculateTotal($params)")
-        }
+    println("\n  b) Cac ham nap chong `calculateTotal` duoc sinh ra nho `@JvmOverloads`:")
+    val calcOverloads = clazz.declaredMethods.filter { it.name == "calculateTotal" }
+    calcOverloads.forEach { method ->
+        val params = method.parameterTypes.joinToString(", ") { it.simpleName }
+        println("     - ${method.returnType.simpleName} calculateTotal($params)")
+    }
+    check(calcOverloads.size == 3)
 
-    println("\n  c) Kiểm tra `@JvmStatic` và `@JvmField` trên lớp `InvoiceCalculator`:")
+    println("\n  c) Kiem tra `@JvmStatic` va `@JvmField` tren lop `InvoiceCalculator`:")
     val staticMethod = clazz.getDeclaredMethod("formatCurrency", BigDecimal::class.java)
-    println("     - Hàm `formatCurrency` có phải `public static` trực tiếp trên InvoiceCalculator? -> ${Modifier.isStatic(staticMethod.modifiers)}")
+    println("     - Ham `formatCurrency` co phai `public static` truc tiep tren InvoiceCalculator? -> ${Modifier.isStatic(staticMethod.modifiers)}")
+    check(Modifier.isStatic(staticMethod.modifiers))
 
     val publicField = clazz.getDeclaredField("FREE_SHIPPING_THRESHOLD")
-    println("     - Trường `FREE_SHIPPING_THRESHOLD` có phải `public static final`? -> ${Modifier.isPublic(publicField.modifiers) && Modifier.isStatic(publicField.modifiers)}")
+    println("     - Truong `FREE_SHIPPING_THRESHOLD` co phai `public static final`? -> ${Modifier.isPublic(publicField.modifiers) && Modifier.isStatic(publicField.modifiers)}")
+    check(Modifier.isPublic(publicField.modifiers) && Modifier.isStatic(publicField.modifiers))
 
-    println("\n  d) Kiểm tra `@Throws(IOException::class)` trên hàm `exportInvoiceToFile`:")
+    println("\n  d) Kiem tra `@Throws(IOException::class)` tren ham `exportInvoiceToFile`:")
     val exportMethod = clazz.getDeclaredMethod("exportInvoiceToFile", String::class.java, Boolean::class.javaPrimitiveType)
     val declaredExceptions = exportMethod.exceptionTypes.map { it.simpleName }
-    println("     - Danh sách Checked Exceptions ghi trong Bytecode `throws`: $declaredExceptions")
+    println("     - Danh sach Checked Exceptions ghi trong Bytecode `throws`: $declaredExceptions")
+    check(declaredExceptions.contains("IOException"))
 
     // =========================================================================
     // 2. CHẠY THỬ NGHIỆM HÀM TÍNH TOÁN & BẮT LỖI IOEXCEPTION
     // =========================================================================
-    println("\n2. Chạy thử nghiệm `InvoiceCalculator`:")
+    println("\n2. Chay thu nghiem `InvoiceCalculator`:")
     val calc = InvoiceCalculator("NOVA_SHOP")
     val total = calc.calculateTotal(BigDecimal("400000"), shippingFee = BigDecimal("30000"))
-    println("  - Tổng tiền hóa đơn (đã gồm VAT 8% + ship 30k): ${InvoiceCalculator.formatCurrency(total)}")
-    println("  - Ngưỡng miễn phí vận chuyển (@JvmField): ${InvoiceCalculator.formatCurrency(InvoiceCalculator.FREE_SHIPPING_THRESHOLD)}")
+    println("  - Tong tien hoa don (da gom VAT 8% + ship 30k): ${InvoiceCalculator.formatCurrency(total)}")
+    println("  - Nguong mien phi van chuyen (@JvmField): ${InvoiceCalculator.formatCurrency(InvoiceCalculator.FREE_SHIPPING_THRESHOLD)}")
 
     try {
         calc.exportInvoiceToFile("INV-2026-001", simulateDiskFull = true)
     } catch (e: IOException) {
-        println("  - Bắt được IOException: ${e.message}")
+        println("  - Bat duoc IOException: ${e.message}")
     }
 
     println("\n--- ___ * END EX02 * ___ ---")

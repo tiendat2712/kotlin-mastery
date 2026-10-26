@@ -63,10 +63,10 @@ public class LegacyPaymentGateway {
      */
     public void executeCharge(String orderId, long amountVnd, PaymentCallback callback) {
         if (amountVnd <= 0) {
-            callback.onCompleted("NONE", false, "Số tiền thanh toán phải lớn hơn 0");
+            callback.onCompleted("NONE", false, "So tien thanh toan phai lon hon 0");
             return;
         }
         String txId = "TX-" + orderId + "-" + amountVnd;
-        callback.onCompleted(txId, true, "Thanh toán thành công qua cổng " + merchantCode);
+        callback.onCompleted(txId, true, "Thanh toan thanh cong qua cong " + merchantCode);
     }
 }
