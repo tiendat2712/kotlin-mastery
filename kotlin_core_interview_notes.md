@@ -17,7 +17,9 @@
   2. **Không phải mọi biến/tham chiếu đều nằm trên Stack:**
      - **Biến cục bộ (local variable)** trong hàm thường nằm trong khung kích hoạt của hàm (stack frame / thanh ghi CPU — mô hình minh họa của JVM).
      - **Thuộc tính của class (`val`/`var` property)** có backing field nằm ngay bên trong đối tượng đó trên **Heap**, không nằm trên Stack.
-     - **Biến cục bộ bị Lambda/Closure capture:** Khi một biến cục bộ `var counter = 0` bị đọc/ghi bên trong một lambda, trình biên dịch Kotlin sẽ đóng gói nó vào một đối tượng wrapper (`Ref.IntRef`, `Ref.ObjectRef`) cấp phát trên **Heap** để chia sẻ giữa hàm ngoài và closure.
+     - **Biến cục bộ `var` bị Closure (Non-inline Lambda) capture:**
+       + Nếu biến cục bộ `var` được đọc/ghi bên trong một **Lambda được `inline`** (như `listOf(1, 2).forEach { sum += it }`), thân lambda được chép thẳng vào hàm gọi nên bytecode chỉ dùng biến cục bộ trong Stack Frame (`iload`, `iadd`, `istore`), **không** tạo đối tượng hộp trên Heap.
+       + Chỉ khi biến cục bộ `var` bị bắt giữ bởi một **Closure phải tồn tại dưới dạng đối tượng** (như truyền vào hàm non-inline, `noinline`, hoặc lưu trữ callback), trình biên dịch Kotlin mới đóng gói nó vào một đối tượng wrapper trên **Heap** (`Ref.IntRef` cho `Int`, `Ref.LongRef` cho `Long`, hoặc `Ref.ObjectRef<T>` cho kiểu tham chiếu đối tượng) để chia sẻ giữa hàm ngoài và closure.
 
 ---
 
@@ -25,7 +27,9 @@
 - **Bản chất 4 khái niệm thường bị đánh đồng:**
   1. **`val`:** Chỉ ngăn việc dùng toán tử `=` để trỏ biến sang đối tượng khác.
   2. **`List<T>`, `Set<T>`, `Map<K, V>` (Read-only interfaces):** Là **giao diện chỉ đọc** (không khai báo các phương thức sửa đổi như `add`, `remove`, `put`). Nó **không đảm bảo** đối tượng bên dưới không thể thay đổi.
-  3. **Shallow Copy (`toList()`, `toMap()`, `data class.copy()`):** Tạo một vỏ container hoặc đối tượng cấp 1 mới, nhưng các phần tử/thuộc tính bên trong vẫn **chia sẻ chung tham chiếu** với bản gốc.
+  3. **Shallow Copy / Snapshot (`toList()`, `toMap()`, `data class.copy()`):**
+     - `.toList()` tạo một danh sách chỉ đọc tách biệt với các thao tác thêm/xóa sau đó trên collection nguồn (lưu ý: stdlib có tối ưu trả về singleton cho danh sách 0 hoặc 1 phần tử nên không cam kết luôn cấp phát `ArrayList` mới), nhưng các phần tử bên trong vẫn **chia sẻ chung tham chiếu** với bản gốc.
+     - `.copy()` của `data class` cũng chỉ là **shallow copy**: nếu thuộc tính bên trong là `MutableList` hay object khả biến, bản sao vẫn dùng chung dữ liệu lồng nhau đó. Ngoài ra, sao chép một đối tượng khả biến (`copyItem()`) chỉ tạo ra một **bản sao khả biến độc lập** (defensive copy), không biến đối tượng đó thành immutable.
   4. **Deep Immutability (Bất biến sâu):** Cả container lẫn toàn bộ cây đối tượng lồng bên trong đều không thể bị thay đổi trạng thái sau khi khởi tạo.
 - **Ví dụ 2 tình huống thực tế (Xem chi tiết tại `lesson07/Ex06ImmutabilityAliasingAndSharedState.kt`):**
   - **Mutable Aliasing:**
@@ -125,7 +129,7 @@
 
 ### KOTLIN-11 | `inline`, `noinline`, `crossinline`, Non-local Return & Closure Capture
 - **`inline` function và đánh đổi (trade-offs):**
-  - Khi đánh dấu hàm bậc cao (nhận lambda) là `inline`, trình biên dịch chép thân hàm và thân lambda trực tiếp vào nơi gọi, giúp tránh cấp phát đối tượng `FunctionN` và cho phép dùng `reified` cũng như non-local `return`.
+  - Khi đánh dấu hàm bậc cao (nhận lambda) là `inline`, trình biên dịch chép thân hàm và thân lambda trực tiếp vào nơi gọi, giúp tránh tạo đối tượng `FunctionN` ở mức bytecode (lưu ý với non-inline capturing lambda, dù bytecode tạo đối tượng `FunctionN`, JIT của JVM vẫn có thể tối ưu qua Escape Analysis tùy ngữ cảnh), tránh tạo hộp `Ref.*` khi cập nhật biến cục bộ `var` trong lambda được inline, và cho phép dùng `reified` cũng như non-local `return`.
   - **Giới hạn & đánh đổi:** Không nên dùng `inline` cho hàm thường không nhận lambda (chỉ làm phình kích thước bytecode vô ích); không nên inline hàm có thân quá dài; hàm đệ quy không thể inline.
 - **`noinline` và `crossinline`:**
   - `noinline`: Giữ lại một tham số lambda dưới dạng đối tượng `FunctionN` bình thường để có thể lưu vào biến hoặc truyền tiếp cho hàm không inline.
@@ -169,7 +173,9 @@
   2. `toString()`, `equals()`, `hashCode()` tự sinh của `data class` truy cập toàn bộ thuộc tính trong primary constructor — nếu có quan hệ `@OneToMany` / `@ManyToOne(fetch = LAZY)`, nó dễ kích hoạt truy vấn ngoài ý muốn (`LazyInitializationException`) hoặc đệ quy hai chiều (`StackOverflowError`).
 - **Cảnh báo khi viết `equals`/`hashCode` cho JPA `@Entity` có ID tự sinh (`@GeneratedValue`):**
   - Không áp dụng máy móc `override fun hashCode() = id.hashCode()` khi `var id: Long? = null` được DB cấp phát sau khi `persist()`! Khi `id` đổi từ `null` sang số cụ thể, `hashCode` bị thay đổi lúc đối tượng đang nằm trong `HashSet`/`HashMap`, làm hỏng cấu trúc bảng băm.
-  - **Cách tiếp cận an toàn:** Dùng khóa tự nhiên bất biến (`@NaturalId val businessCode: String` hoặc `UUID` gán ngay từ đầu), hoặc kết hợp `equals` kiểm tra `id != null && id == other.id` với `hashCode() = javaClass.hashCode()` (đánh đổi: các entity cùng lớp dùng chung 1 bucket băm, nên tránh nhét hàng chục nghìn bản ghi vào cùng một `HashSet`).
+  - **Cách tiếp cận an toàn & lưu ý về Hibernate Proxy:**
+    - Dùng khóa tự nhiên bất biến (`@NaturalId val businessCode: String` hoặc `UUID` gán ngay từ đầu).
+    - Hoặc kết hợp `equals` kiểm tra `id != null && id == other.id` với mã băm hằng số theo lớp thực thể (đánh đổi: các entity cùng lớp dùng chung 1 bucket băm, nên tránh nhét hàng chục nghìn bản ghi vào cùng một `HashSet`). **Lưu ý giới hạn với Hibernate Subclass Proxy:** Trong Hibernate thực tế, thực thể thật và đối tượng Lazy Proxy của nó có `javaClass` khác nhau; nếu `equals` coi chúng bằng nhau nhưng `hashCode()` chỉ gọi `javaClass.hashCode()` trực tiếp thì sẽ vi phạm hợp đồng `equals`/`hashCode`. Do đó, ở giai đoạn làm việc với Hibernate thật, cần dùng chiến lược equality có xét proxy (như `HibernateProxy` / `Hibernate.getClass(this)`).
 
 ---
 
@@ -211,12 +217,13 @@
 
 ---
 
-### KOTLIN-19 | Hiểu đúng về `suspend fun`, Concurrency vs Parallelism và quản lý vòng đời Coroutines
-- **`suspend` không tự động làm code non-blocking hay đổi sang background thread:**
+### KOTLIN-19 | Hiểu đúng về `suspend fun`, Cancellation, Concurrency vs Parallelism và quản lý vòng đời Coroutines
+- **`suspend` không tự động làm code non-blocking, không tự đổi sang background thread, và không tự kiểm tra hủy (cancellation):**
   - Đánh dấu một hàm là `suspend` chỉ cho phép trình biên dịch biến đổi hàm đó theo cơ chế CPS (Continuation Passing Style) để nó **có khả năng tạm dừng** tại các điểm treo (suspension points).
   - Nếu bên trong `suspend fun` bạn gọi một hàm chặn luồng như `Thread.sleep(...)` hoặc đọc I/O đồng bộ mà không chuyển dispatcher, nó vẫn chạy ngay trên luồng của người gọi và **chặn cứng luồng đó**.
+  - Tương tự, `suspend` không tự động kiểm tra trạng thái hủy của Coroutine: chỉ những hàm tạm dừng có hỗ trợ hủy (như `delay()`, `yield()`, các hàm dùng `suspendCancellableCoroutine`, hoặc hàm chủ động gọi `ensureActive()`) mới kiểm tra và ném `CancellationException` khi Coroutine đã bị hủy. Với `Flow.catch`, toán tử này chỉ bắt ngoại lệ từ upstream và không bắt các ngoại lệ phát sinh nhằm hủy luồng (`Flow` cancellation).
 - **Concurrency (Đồng thời) vs Parallelism (Song song):**
-  - Chạy 1.000 coroutines cùng lúc trên **1 thread duy nhất** (như `runBlocking`) là **Concurrency**: các coroutine đan xen nhau sử dụng CPU khi coroutine khác đang tạm dừng chờ (`delay`).
+  - Chạy 1.000 coroutines cùng lúc hoặc dùng `Flow.buffer()` trên **1 thread duy nhất** (như `runBlocking` đơn luồng) là **Concurrency**: các coroutine đan xen nhau sử dụng CPU khi coroutine khác đang tạm dừng chờ (`delay`).
   - **Parallelism** là khi nhiều tác vụ thực sự chạy cùng một thời điểm vật lý trên **nhiều nhân CPU** (như khi chạy trên thread pool đa luồng `Dispatchers.Default`).
 - **Vòng đời của `launch` (`Job`):**
   - Không nên hiểu `launch` là "bắn ra rồi bỏ mặc". `launch` dùng cho tác vụ không trả về giá trị kết quả (trả về `Job` thay vì `Deferred<T>` của `async`), nhưng nó vẫn **chịu sự quản lý chặt chẽ của `CoroutineScope` cha (Structured Concurrency)**: scope cha sẽ đợi `Job` hoàn tất trước khi đóng, và nếu `Job` ném ngoại lệ không bắt trong `coroutineScope`, nó sẽ hủy cả các coroutine anh em.
