@@ -40,8 +40,14 @@ import java.time.LocalDateTime
  *          và không bao giờ đổi (`val`), nên viết `override fun hashCode() = id.hashCode()` là an toàn.
  *        * Tuy nhiên, trong dự án JPA thực tế dùng khóa tự tăng từ DB (`@Id @GeneratedValue var id: Long? = null`),
  *          `id` sẽ chuyển từ `null` sang số khác `null` sau khi `persist()`. Nếu dùng `id.hashCode()` trực tiếp,
- *          mã băm của đối tượng sẽ bị thay đổi khi nằm trong `HashSet` / `HashMap`! Khi đó, người ta thường dùng
- *          hằng số theo lớp (`javaClass.hashCode()`), khóa tự nhiên bất biến (`@NaturalId`), hoặc UUID sinh sẵn phía ứng dụng.
+ *          mã băm của đối tượng sẽ bị thay đổi khi nằm trong `HashSet` / `HashMap`!
+ *        * Khi đó, cần dùng chiến lược mã băm ổn định (như khóa tự nhiên `@NaturalId`, UUID sinh sẵn phía ứng dụng,
+ *          hoặc hằng số theo lớp thực thể). **Lưu ý giới hạn về Hibernate Proxy**: Trong Hibernate thực tế, một thực thể thật
+ *          (`UserEntity`) và đối tượng Lazy Subclass Proxy của nó (`UserEntity$HibernateProxy$...`) có `javaClass` khác nhau!
+ *          Nếu `equals` coi thực thể thật và proxy là bằng nhau mà `hashCode()` lại gọi `javaClass.hashCode()` trực tiếp,
+ *          hai đối tượng bằng nhau sẽ có mã băm khác nhau (vi phạm hợp đồng `equals`/`hashCode`). Vì vậy, khi sang dự án
+ *          Hibernate/Spring Data JPA thực tế, chiến lược equality có xét proxy (như `HibernateProxy` / `Hibernate.getClass(this)`)
+ *          sẽ được áp dụng thay vì chỉ gọi `javaClass.hashCode()` đơn giản.
  *    - **Mẫu 3 (Request/Response DTO)**: Thường dùng `data class` với các thuộc tính `val` (bất biến nông - shallow immutability),
  *      kết hợp `@field:NotBlank`, `@field:Email`, `@field:Valid` khi làm việc với Jakarta Validation.
  *    - **Mẫu 4 (Extension Mapper)**: Dùng **Extension Functions** (`fun UserEntity.toResponse(): UserResponse`)
@@ -79,9 +85,11 @@ open class UserEntity(
     var active: Boolean = true,
     val createdAt: LocalDateTime = LocalDateTime.now()
 ) {
-    // Vì `id` ở đây được gán sẵn khác null từ lúc khởi tạo và là `val` bất biến,
-    // ta có thể dùng `id` cho equals/hashCode. (Nếu dùng @GeneratedValue var id: Long? = null của JPA,
-    // chỉ nên so sánh khi id != null và trả về javaClass.hashCode() để giữ bất biến bucket trong Set!).
+    // Vì `id` ở đây được gán sẵn khác null từ lúc khởi tạo và là `val` bất biến (trong mô phỏng thuần Kotlin không có Hibernate Proxy),
+    // ta có thể dùng `id` cho equals/hashCode.
+    // (Lưu ý: Với JPA @Entity thật dùng @GeneratedValue var id: Long? = null và có Hibernate Lazy Proxy,
+    // không dùng id.hashCode() trực tiếp và cũng không coi javaClass.hashCode() là công thức tổng quát cho mọi trường hợp
+    // vì subclass proxy có javaClass khác với class gốc — cần chiến lược equality có xét HibernateProxy ở giai đoạn học JPA thực tế).
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is UserEntity) return false
