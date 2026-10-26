@@ -64,13 +64,20 @@ package view
  *        Nếu thực thể có một khóa nghiệp vụ duy nhất, biết ngay từ lúc khởi tạo và không bao giờ đổi
  *        (ví dụ `val taxCode: String` hoặc `val externalUuid: UUID`), ta dùng khóa đó cho cả
  *        `equals()` và `hashCode()`. Cách này phân tán đều các bucket trong `HashSet`/`HashMap` ($O(1)$).
- *      - **Hướng 2: Dùng Constant `hashCode()` (`javaClass.hashCode()`) kết hợp `id != null && id == other.id`**:
- *        + Ưu điểm: Khi chưa có Business Key và phải dùng `@GeneratedValue` ID, việc trả về hằng số
- *          `javaClass.hashCode()` đảm bảo mã băm KHÔNG ĐỔI trước và sau khi `persist()`, giữ cho
- *          `HashSet` hoạt động đúng đắn xuyên suốt mọi trạng thái vòng đời Entity.
- *        + Đánh đổi (Trade-off): Vì mọi thực thể cùng class trả về cùng một mã băm, chúng sẽ rơi vào
- *          cùng 1 bucket trong `HashSet`, làm độ phức tạp tra cứu giảm từ $O(1)$ xuống $O(N)$. Do đó,
- *          với cách này, tránh nhét hàng nghìn thực thể vào cùng một `HashSet` lớn!
+ *      - **Hướng 2: Dùng Constant `hashCode()` theo lớp kết hợp `id != null && id == other.id` (và lưu ý giới hạn với Hibernate Proxy)**:
+ *        + Ý tưởng trong mô phỏng thuần Kotlin: Khi chưa có Business Key và phải dùng `@GeneratedValue` ID,
+ *          việc trả về một mã băm hằng số không phụ thuộc vào `id` giúp mã băm KHÔNG ĐỔI trước và sau khi `persist()`,
+ *          giữ cho `HashSet` không bị lệch bucket khi `id` được gán giá trị.
+ *        + **Hai giới hạn kỹ thuật cần nhớ khi bước sang Hibernate thực tế**:
+ *          1. *Đánh đổi hiệu năng bucket*: Mọi thực thể cùng loại rơi vào cùng 1 bucket trong `HashSet` ($O(N)$),
+ *             nên tránh nhét hàng nghìn thực thể vào cùng một `HashSet` lớn.
+ *          2. *Giới hạn với Hibernate Subclass Proxy*: Trong Hibernate thật, một đối tượng thực thể (`CustomerJpaEntity`)
+ *             và đối tượng Lazy Proxy của nó (`CustomerJpaEntity$HibernateProxy$...`) có `this.javaClass` KHÁC NHAU!
+ *             Nếu `equals` dùng `other is CustomerJpaEntity` (chấp nhận cả proxy là bằng nhau) nhưng `hashCode()` lại viết
+ *             `javaClass.hashCode()` trực tiếp, thì thực thể thật và proxy sẽ bằng nhau theo `equals` nhưng khác `hashCode()`
+ *             (vi phạm hợp đồng `equals`/`hashCode`!). Do đó, `javaClass.hashCode()` dưới đây chỉ là minh họa đơn giản trong
+ *             repo Kotlin Core (chưa có thư viện Hibernate); khi vào dự án Hibernate thực tế, bạn sẽ cần xử lý mở lớp gốc
+ *             của proxy (ví dụ qua `HibernateProxy` / `Hibernate.getClass(this)`).
  */
 
 // 1. DTO tiện lợi với `data class` (chứa các kiểu dữ liệu bất biến `String`, `Double`)
@@ -89,7 +96,8 @@ private data class OrderDraft(
     val tags: MutableList<String> // CẢNH BÁO: Dùng MutableList bên trong data class!
 )
 
-// 3. Mô phỏng JPA @Entity chuẩn mực (Hướng 2: Constant hashCode cho DB-generated ID)
+// 3. Mô phỏng JPA @Entity trong Kotlin Core (Minh họa mã băm không đổi khi id chuyển từ null -> 42L;
+// lưu ý trong Hibernate thực tế có Lazy Proxy thì cần xét thêm HibernateProxy thay vì chỉ gọi javaClass trực tiếp)
 private open class CustomerJpaEntity(
     var id: Long? = null,
     var email: String,
@@ -102,8 +110,8 @@ private open class CustomerJpaEntity(
         return id != null && id == other.id
     }
 
-    // Constant hashCode giữ an toàn cho HashSet khi id chuyển từ null -> 42L sau persist()
-    override fun hashCode(): Int = javaClass.hashCode()
+    // Minh họa mã băm cố định trong phạm vi Kotlin Core (khi chưa có Hibernate Subclass Proxy)
+    override fun hashCode(): Int = CustomerJpaEntity::class.java.hashCode()
 
     override fun toString(): String = "CustomerJpaEntity(id=$id, email='$email', fullName='$fullName')"
 }
