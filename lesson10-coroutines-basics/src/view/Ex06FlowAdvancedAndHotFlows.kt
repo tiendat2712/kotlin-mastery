@@ -46,7 +46,9 @@ import kotlin.system.measureTimeMillis
  *        * `.catch` **CHỈ bắt lỗi phát sinh từ Upstream** (tức khối `flow { ... }` và các toán tử `.map`, `.filter`
  *          nằm **phía trên** `.catch`).
  *        * `.catch` **KHÔNG bắt lỗi ném ra bên trong `.collect { ... }`** (Downstream)!
- *        * `.catch` **KHÔNG BAO GIỜ nuốt `CancellationException`** (đảm bảo hủy Coroutine an toàn).
+ *        * Theo tài liệu chính thức của `Flow.catch`, toán tử này **không bắt các ngoại lệ dùng để hủy luồng (exceptions
+ *          that occur to cancel the flow)** — ví dụ khi phía downstream/collector hủy luồng hoặc ném ngoại lệ làm dừng
+ *          việc thu thập, ngoại lệ hủy đó sẽ được ném đi tiếp (rethrow) để bảo toàn cơ chế hủy của Coroutine.
  *
  *    - **Phân biệt Cold `Flow` vs Hot `StateFlow` / `SharedFlow`**:
  *      + **Cold `Flow`**: Lười biếng (Lazy), chỉ chạy khi có `.collect`, mỗi Collector nhận một luồng riêng biệt từ đầu (Unicast).
@@ -107,17 +109,21 @@ fun main() = runBlocking {
         }
     }
 
-    // Không có `.buffer()`: Mỗi phần tử mất (30ms emit + 50ms collect) = 80ms -> 3 phần tử mất ~240ms
+    // Không có `.buffer()`: Producer và Collector chạy tuần tự trong cùng 1 Coroutine ->
+    // Mỗi phần tử mất (30ms chờ emit + 50ms chờ collect) = ~80ms -> 3 phần tử mất khoảng ~240ms.
     val withoutBufferMs = measureTimeMillis {
         slowProducerFlow.collect { delay(50) }
     }
 
-    // Có `.buffer()`: Producer phát liên tục không cần đợi Collector xử lý xong -> Tổng thời gian giảm rõ rệt (~180ms)
+    // Có `.buffer()`: Tách Producer sang 1 Coroutine riêng gửi qua Channel.
+    // Lưu ý: Vì đang chạy trên `runBlocking` đơn luồng và chờ bằng `delay`, hiệu quả giảm thời gian ở đây
+    // đến từ việc chạy ĐỒNG THỜI (Concurrency — đan xen thời gian chờ giữa Producer và Collector trên cùng 1 thread),
+    // KHÔNG phải chạy song song vật lý (Parallelism) trên nhiều nhân CPU! (Số đo ms thực tế là minh họa, phụ thuộc OS scheduler).
     val withBufferMs = measureTimeMillis {
         slowProducerFlow.buffer().collect { delay(50) }
     }
-    println("  - Thoi gian khong dung `.buffer()`: ${withoutBufferMs}ms")
-    println("  - Thoi gian co dung `.buffer()`   : ${withBufferMs}ms (Nhanh hon nho Producer & Collector chay song song!)")
+    println("  - Thoi gian khong dung `.buffer()` (minh hoa): ${withoutBufferMs}ms")
+    println("  - Thoi gian co dung `.buffer()`    (minh hoa): ${withBufferMs}ms (Nhanh hon nho Producer & Collector chay dong thoi [concurrently], dan xen thoi gian cho!)")
 
     // =========================================================================
     // 3. XỬ LÝ LỖI UPSTREAM VỚI `.catch` VÀ THEO DÕI VÒNG ĐỜI VỚI `.onCompletion`

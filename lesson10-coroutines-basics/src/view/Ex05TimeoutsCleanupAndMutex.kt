@@ -32,11 +32,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  *    - **Dọn dẹp tài nguyên khi bị hủy với `cancelAndJoin()` & `withContext(NonCancellable)`**:
  *      + `job.cancelAndJoin()` là hàm tiện ích gộp `job.cancel()` (gửi tín hiệu hủy) và `job.join()` (đợi Coroutine
  *        chạy xong khối `finally` rồi mới đi tiếp).
- *      + Khi một Coroutine đang ở trạng thái **Đã bị hủy (Cancelled)**, mọi lệnh gọi `suspend fun` thông thường
- *        (như `delay()`, đóng kết nối mạng bất đồng bộ, gửi log hủy về server) bên trong khối `finally` sẽ lập tức
- *        ném `CancellationException` và không chạy được!
- *      + Trong trường hợp hiếm hoi bắt buộc phải gọi `suspend fun` trong khối `finally`, ta bọc phần đó vào
- *        `withContext(NonCancellable) { ... }` để tạm thời miễn nhiễm với trạng thái hủy trong lúc dọn dẹp.
+ *      + **Lưu ý quan trọng**: Từ khóa `suspend` **KHÔNG tự động kiểm tra trạng thái hủy (cancellation)**!
+ *        Một `suspend fun` chỉ tính toán rồi trả kết quả mà không gọi tới điểm kiểm tra hủy thì vẫn chạy bình thường
+ *        ngay cả khi Coroutine đã bị hủy.
+ *      + Tuy nhiên, các **hàm tạm dừng có hỗ trợ hủy (cancellable suspending functions)** trong thư viện chuẩn
+ *        (như `delay()`, `yield()`, các hàm xây dựng trên `suspendCancellableCoroutine`, hoặc hàm chủ động gọi `ensureActive()`)
+ *        sẽ kiểm tra trạng thái `Job` và ném ngay `CancellationException` nếu được gọi khi Coroutine đã ở trạng thái **Cancelled**!
+ *      + Do đó, nếu bên trong khối `finally` bạn cần gọi một hàm tạm dừng có kiểm tra hủy (ví dụ `delay()` hoặc đóng kết nối
+ *        bất đồng bộ dùng `suspendCancellableCoroutine`), ta bọc phần đó vào `withContext(NonCancellable) { ... }`
+ *        để tạm thời bỏ qua trạng thái hủy trong lúc dọn dẹp tài nguyên.
  *
  *    - **Trạng thái khả biến dùng chung (Shared Mutable State) & `kotlinx.coroutines.sync.Mutex`**:
  *      + Khi nhiều Coroutine chạy song song trên các Dispatcher đa luồng (như `Dispatchers.Default` hoặc `Dispatchers.IO`),
@@ -60,25 +64,28 @@ fun main() = runBlocking {
     // =========================================================================
     println("1. Gioi han thoi gian cho voi `withTimeoutOrNull` va `withTimeout`:")
 
-    // Trường hợp A: Dịch vụ trả lời kịp thời (40ms < giới hạn 100ms)
-    val fastPoints: Int = withTimeoutOrNull(100) {
-        callSlowExternalLoyaltyService("C001", simulatedDelayMs = 40)
+    // Lưu ý thực tế: Thời gian chờ bằng `delay` và `withTimeoutOrNull` phụ thuộc vào bộ lập lịch (scheduler)
+    // của JVM/OS tại thời điểm chạy. Để tránh sai lệch ngẫu nhiên (flaky) khi máy đang tải nặng,
+    // ví dụ dưới đây đặt khoảng cách lớn giữa thời gian giả lập (10ms) và ngưỡng timeout (2000ms).
+    // Trường hợp A: Dịch vụ trả lời kịp thời trước hạn (10ms << giới hạn 2000ms)
+    val fastPoints: Int = withTimeoutOrNull(2_000) {
+        callSlowExternalLoyaltyService("C001", simulatedDelayMs = 10)
     } ?: 0
-    println("  - [Kip thoi 40ms/100ms] Diem thuong lay duoc: $fastPoints")
+    println("  - [Kip thoi 10ms / timeout 2000ms] Diem thuong lay duoc: $fastPoints")
     check(fastPoints == 1_500)
 
-    // Trường hợp B: Dịch vụ bị treo/chậm (200ms > giới hạn 80ms) -> `withTimeoutOrNull` trả về `null`, dùng Elvis lấy 0
-    val slowPointsWithFallback: Int = withTimeoutOrNull(80) {
-        callSlowExternalLoyaltyService("C002", simulatedDelayMs = 200)
+    // Trường hợp B: Dịch vụ bị treo/chậm quá hạn (500ms > giới hạn 50ms) -> `withTimeoutOrNull` trả về `null`, dùng Elvis lấy -1
+    val slowPointsWithFallback: Int = withTimeoutOrNull(50) {
+        callSlowExternalLoyaltyService("C002", simulatedDelayMs = 500)
     } ?: -1
-    println("  - [Qua han 200ms/80ms voi withTimeoutOrNull] Ket qua fallback an toan: $slowPointsWithFallback")
+    println("  - [Qua han 500ms / timeout 50ms voi withTimeoutOrNull] Ket qua fallback an toan: $slowPointsWithFallback")
     check(slowPointsWithFallback == -1)
 
     // Trường hợp C: `withTimeout` ném `TimeoutCancellationException` khi quá hạn
     var timeoutExceptionCaught = false
     try {
-        withTimeout(60) {
-            callSlowExternalLoyaltyService("C003", simulatedDelayMs = 200)
+        withTimeout(50) {
+            callSlowExternalLoyaltyService("C003", simulatedDelayMs = 500)
         }
     } catch (e: TimeoutCancellationException) {
         timeoutExceptionCaught = true
