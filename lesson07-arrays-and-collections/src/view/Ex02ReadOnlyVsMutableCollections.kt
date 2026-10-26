@@ -37,10 +37,11 @@ package view
  *      Là một **giao diện chỉ đọc** (thiếu các hàm `add`, `remove`, `clear`), **KHÔNG phải là lời
  *      đảm bảo bất biến (NOT a guarantee of immutability)**! Nếu có một biến `MutableList<T>`
  *      khác đang cùng trỏ tới danh sách đó (aliasing), dữ liệu qua góc nhìn `List<T>` vẫn thay đổi!
- *   3. **`.toList()` (Shallow Defensive Copy)**:
- *      Tạo một **bản sao nông (shallow copy)** của vỏ danh sách tại thời điểm gọi. Nó bảo vệ
- *      danh sách gốc khỏi việc thêm/xóa phần tử (`add`/`remove`) ở danh sách ngoài, nhưng **KHÔNG
- *      sao chép sâu (deep-copy)** các phần tử nằm bên trong!
+ *   3. **`.toList()` (Shallow Defensive Snapshot)**:
+ *      Tạo một **bản chụp nông (shallow snapshot)** chỉ đọc tách biệt với các thao tác thêm/xóa sau đó trên
+ *      collection nguồn (lưu ý ở stdlib Kotlin, `.toList()` có tối ưu cho danh sách 0 hoặc 1 phần tử nên không
+ *      cam kết luôn cấp phát `ArrayList` mới trong mọi trường hợp), và **KHÔNG sao chép sâu (deep-copy)**
+ *      các phần tử nằm bên trong!
  *   4. **Deep Immutability (Bất biến sâu thực sự)**:
  *      Đòi hỏi CẢ HAI điều kiện:
  *        (a) Vỏ Collection không thể bị sửa đổi (và không bị lộ tham chiếu `MutableList` ra ngoài), VÀ

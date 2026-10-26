@@ -19,17 +19,28 @@ import java.util.concurrent.atomic.AtomicInteger
  *   `MutableList<T>` khác nắm giữ (**Mutable Aliasing**), thì khi biến `MutableList<T>`
  *   thêm/xóa phần tử, `List<T>` cũng bị thay đổi theo ngay lập tức!
  *
- * 2. NGỘ NHẬN 2: "Gọi `.toList()` là bảo vệ an toàn 100% dữ liệu" -> CHỈ ĐÚNG 1 NỬA!
+ * 2. NGỘ NHẬN 2: "Gọi `.toList()` hoặc `.map { it.copy() }` là đạt Deep Immutability" -> CHƯA ĐÚNG!
  * ----------------------------------------------------------------------------
- * - Hàm `.toList()` tạo ra một `ArrayList` mới trên HEAP và chép các **con trỏ tham chiếu**
- *   từ danh sách cũ sang danh sách mới (**Shallow Copy - Sao chép nông**).
- * - Nó bảo vệ được **cấu trúc danh sách** (thêm/xóa phần tử ở list mới không ảnh hưởng list cũ).
+ * - Hàm `.toList()` tạo ra một danh sách chỉ đọc tách biệt cấu trúc với collection nguồn tại thời điểm gọi
+ *   (**Shallow Snapshot / Shallow Copy** — lưu ý trong stdlib Kotlin, `.toList()` không cam kết luôn cấp phát
+ *   `ArrayList` mới cho mọi trường hợp vì có tối ưu trả về `EmptyList` khi rỗng hoặc `SingletonList` khi có 1 phần tử).
+ * - Nó bảo vệ được **cấu trúc danh sách** (thêm/xóa phần tử ở list gốc sau đó không ảnh hưởng tới snapshot).
  * - NHƯNG nếu phần tử `T` bên trong là một đối tượng khả biến (`class MutablePriceItem(val sku: String, var price: Long)`),
  *   thì cả 2 danh sách vẫn trỏ chung vào cùng các đối tượng `MutablePriceItem` trên HEAP!
- *   Gọi `defensiveList[0].price = 0L` sẽ làm hỏng luôn `originalList[0].price`!
- * - **Giải pháp đạt Deep Immutability**:
- *   + Cách tốt nhất: Thiết kế phần tử `T` là bất biến (`data class ImmutablePriceItem(val sku: String, val price: Long)`).
- *   + Nếu buộc phải dùng phần tử khả biến: Phải sao chép sâu từng phần tử (`original.map { it.copy() }`).
+ *   Gọi `shallowDefensiveList[0].price = 0L` sẽ làm hỏng luôn `originalList[0].price`!
+ * - **Phân biệt rõ "Sao chép phần tử (Defensive Element Copy)" vs "Deep Immutability"**:
+ *   + **Sao chép phần tử (`original.map { it.copyItem() }`)**:
+ *     * Với model phẳng (`MutablePriceItem` chỉ chứa `String` và `Long`), `copyItem()` giúp tách vùng nhớ phần tử
+ *       để việc sửa bản sao không làm hỏng bản gốc (**Defensive Copy cho model phẳng**).
+ *     * Tuy nhiên, bản sao tạo ra **vẫn là đối tượng khả biến (mutable)**, chứ KHÔNG biến thành bất biến (immutable)!
+ *     * Hơn nữa, không được tổng quát hóa `original.map { it.copy() }` thành công thức Deep Copy cho mọi `data class`:
+ *       theo tài liệu chính thức của Kotlin, hàm `.copy()` của `data class` chỉ là **Shallow Copy (sao chép nông)**.
+ *       Nếu phần tử bên trong còn chứa một `MutableList` hay object khả biến lồng nhau, `.copy()` mặc định vẫn dùng chung
+ *       tham chiếu lồng nhau đó!
+ *   + **Đạt Deep Immutability thực sự**:
+ *     * Thiết kế bản thân phần tử `T` và toàn bộ các thuộc tính/collection lồng bên trong đều bất biến
+ *       (ví dụ `data class ImmutablePriceItem(val sku: String, val price: Long)` chỉ dùng `val` với các kiểu bất biến),
+ *       kết hợp với việc không để lộ tham chiếu `MutableList` của container ra ngoài.
  *
  * 3. NGỘ NHẬN 3: "Singleton `object` + Read-Only `Map`/`List` là Thread-Safe" -> SAI!
  * ----------------------------------------------------------------------------
@@ -125,16 +136,19 @@ fun main() {
     check(originalList[0].price == 0L)
     check(originalList[0] === shallowDefensiveList[0])
 
-    // CÁCH KHẮC PHỤC 1: Deep Copy từng phần tử trước khi trả ra ngoài
+    // HƯỚNG XỬ LÝ 1 (Khi buộc phải làm việc với model phẳng khả biến):
+    // Sao chép phòng thủ từng phần tử (`copyItem()`). Lưu ý: Bản sao `copiedElementsList[0]` vẫn là
+    // đối tượng mutable (chưa phải Deep Immutability), nhưng đã tách rời khỏi `restoredList[0]`!
+    // (Nếu model có chứa tập hợp khả biến lồng bên trong, `data class.copy()` mặc định chỉ là shallow copy nên sẽ phải tự copy đệ quy từng tầng).
     val restoredList = listOf(MutablePriceItem("SKU-LAPTOP", 30_000_000L))
-    val deepCopiedList = restoredList.map { it.copyItem() }
-    deepCopiedList[0].price = 999L
-    println("  Sau khi Deep Copy (`map { it.copyItem() }`):")
-    println("    restoredList[0]         : ${restoredList[0]} (An toan!)")
-    println("    deepCopiedList[0]       : ${deepCopiedList[0]}")
+    val copiedElementsList = restoredList.map { it.copyItem() }
+    copiedElementsList[0].price = 999L
+    println("  Sau khi sao chep phan tu cho model phang (`map { it.copyItem() }`):")
+    println("    restoredList[0]       : ${restoredList[0]} (Ban goc khong bi anh huong!)")
+    println("    copiedElementsList[0] : ${copiedElementsList[0]} (Ban sao van la mutable, nhung doc lap)")
     check(restoredList[0].price == 30_000_000L)
 
-    // CÁCH KHẮC PHỤC 2 (Chuẩn Kotlin Idiomatic): Dùng `data class` bất biến (`ImmutablePriceItem`)
+    // HƯỚNG XỬ LÝ 2 (Đạt Deep Immutability thực sự): Thiết kế phần tử bất biến (`ImmutablePriceItem`)
     val trulyImmutableList: List<ImmutablePriceItem> = listOf(
         ImmutablePriceItem("SKU-LAPTOP", 30_000_000L)
     )
