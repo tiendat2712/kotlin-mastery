@@ -1,44 +1,71 @@
-# 🚀 Kotlin Journey — Từ Java Core Đến Làm Chủ Kotlin & Spring Boot
+# Kotlin Journey — From Java Core to Idiomatic Kotlin & Spring Boot
 
-Dự án học **Kotlin Core** được thiết kế riêng cho lập trình viên đã có nền tảng **Java Core** (tương ứng với lộ trình tại `D:\Java_Journey`), đóng vai trò là bước đệm vững chắc trước khi bước sang **Spring Boot với Kotlin**.
+A structured, multi-module **Kotlin/JVM** learning repository designed for Java developers transitioning to **Spring Boot with Kotlin**. Each lesson contains runnable `main()` examples, JVM bytecode/memory analysis, Java-vs-Kotlin comparisons, and active learning exercises.
 
----
+## Tech Stack
 
-## 📂 Cấu Trúc Dự Án (12 Modules)
-
-Mỗi bài học (`lesson01` $\rightarrow$ `lesson12`) là một subproject Gradle độc lập, giữ nguyên cấu trúc thư mục `src/` ngắn gọn, dễ nhìn giống hệt `D:\Java_Journey`:
-
-| Module | Chủ đề trọng tâm | Đối chiếu từ `D:\Java_Journey` | Ứng dụng trong Spring Boot Kotlin |
-| :--- | :--- | :--- | :--- |
-| **`lesson01-basics-and-types`** | `fun main`, `val`/`var`/`const val`, Kiểu dữ liệu, `Any`/`Unit`/`Nothing`, Chuỗi, String Template, Multiline String, `==` vs `===`, Operator Overloading | `lesson02-data-structure`, `lesson07-libraries`, `lesson08-string` | Viết câu `@Query` SQL/JPQL nhiều dòng với `"""..."""`, tính toán tiền tệ `BigDecimal` bằng toán tử `+`, `-`, `*`, so sánh giá trị an toàn với `==` |
-| **`lesson02-null-safety-and-scope`** | Nullable (`?`), Safe Call (`?.`), Elvis (`?:`), `!!`, Smart Cast (`is`), Safe Cast (`as?`), 5 Scope Functions (`let`, `also`, `apply`, `run`, `with`), `lateinit var`, `by lazy` | Khắc phục `NullPointerException` kinh điển của Java | Xử lý kết quả từ Repository (`findByIdOrNull(id) ?: throw NotFoundException()`), cấu hình Bean/Test với `apply`, `lateinit var` |
-| **`lesson03-control-flow-and-loops`** | `Boolean?`, `if-else` Expression, `when` Expression nâng cao, Ranges (`..`, `..<`, `downTo`, `step`), Vòng lặp `for`/`while`, Labeled `break@`/`return@` | `lesson02-data-structure/src/controlling` | Dùng `when` expression để điều hướng trạng thái đơn hàng, phân quyền hoặc ánh xạ HTTP Status Code |
-| **`lesson04-functions-and-extensions`** | Single-expression function, Default & Named Arguments, `Pair`/`Triple` & Destructuring, Higher-Order Functions, Trailing Lambda, **Extension Functions**, Infix & Kotlin DSL | `lesson00-design-pattern` (Builder), `lesson04-oop-features` (Overload, Functional Interface) | Thay thế Builder Pattern bằng Named/Default Args; dùng **Extension Functions** (`fun UserEntity.toDto()`) làm Mapper chuẩn trong Spring |
-| **`lesson05-oop-classes-and-objects`** | Class, Properties (Getter/Setter ngầm định & custom `field`), Primary/Secondary Constructor, `init`, Visibility (`internal`), `open` vs `final`, Interfaces & `fun interface` | `lesson03-oop`, `lesson04-oop-features` | Hiểu tại sao class trong Kotlin mặc định là `final` và tại sao Spring AOP / `@Transactional` cần plugin `kotlin("plugin.spring")` (`all-open`) |
-| **`lesson06-special-classes-and-delegation`** | `data class` (`copy`, `componentN`), `enum class`, `sealed class` & `sealed interface`, `object` (Singleton), `companion object`, `@JvmInline value class`, Delegation (`by`) | `lesson00-design-pattern`, `lesson03-oop` | Dùng `data class` cho Request/Response DTO (và tránh bẫy dùng `data class` cho JPA `@Entity`); dùng `sealed interface` cho kết quả nghiệp vụ |
-| **`lesson07-arrays-and-collections`** | `IntArray` vs `Array<Int>`, Phân tách **Read-only (`List`, `Set`, `Map`)** và **Mutable (`MutableList`, `MutableSet`, `MutableMap`)**, Destructuring | `lesson10-arrays`, `lesson11-colection` | Bảo vệ tính bất biến (Immutability) của dữ liệu trả về từ tầng Service/Domain |
-| **`lesson08-collection-pipelines-and-sequences`** | `filter`, `map`, `flatMap`, `associateBy`, `groupBy`, `partition`, `sumOf`, `fold`, `sortedWith(compareBy...)`, **`Sequence` (`asSequence()`)**, giải bài tập `TransactionApp` | `lesson11-colection`, `lesson12-stream-api` | Xử lý dữ liệu trực tiếp trên Collection không cần `.stream()...collect()`, gom nhóm và tạo Map tra cứu $O(1)$ tránh lỗi N+1 Query |
-| **`lesson09-generics-exceptions-annotations`** | Generics Variance (`out`/`in`), **`inline` + `reified`**, Unchecked Exceptions, `require`/`check`/`runCatching`, `.use {}`, **Annotation Use-site Targets (`@field:`)** | `lesson06-exception`, `lesson11-colection/src/generic`, `lesson13-files` | Bắt buộc dùng `@field:NotBlank`, `@field:Valid` khi validate DTO trong Spring Boot; hiểu cách hoạt động của `restClient.body<UserDto>()` nhờ `reified` |
-| **`lesson10-coroutines-basics`** | Coroutines vs OS Threads, `suspend fun`, `runBlocking`, `launch`, `async`/`await`, `Dispatchers.IO`/`Default`, Structured Concurrency, `Flow<T>` | `lesson14-thread` | Lập trình bất đồng bộ hiệu năng cao, gọi song song nhiều External API/Microservices, làm chủ Spring WebFlux & Coroutines |
-| **`lesson11-java-interop-and-spring-readiness`** | Gọi Java từ Kotlin (Platform Types `T!`, `-Xjsr305=strict`), `@JvmStatic`, `@JvmOverloads`, `@JvmField`, Mô phỏng kiến trúc Controller $\rightarrow$ Service $\rightarrow$ Repository | Tổng hợp chuyển giao Java $\leftrightarrow$ Kotlin | Nắm trọn bộ cấu hình và quy tắc thiết kế một dự án Spring Boot Kotlin chuẩn thực tế |
-| **`lesson12-final-assignment`** | **Capstone Project: Nova Shop (Idiomatic Kotlin Edition)** — Quản lý đơn hàng, chuẩn hóa dữ liệu, tìm kiếm phân trang & 5 báo cáo kinh doanh | `lesson15-final-assignment` (Nova Shop Java) | Vận dụng tổng hợp toàn bộ kiến thức Kotlin Core vào một hệ thống nghiệp vụ hoàn chỉnh trước khi ghép nối Database & Spring Web |
+- **Kotlin:** `2.0.21`
+- **Gradle:** `8.14` (Kotlin DSL)
+- **Coroutines:** `kotlinx-coroutines-core:1.8.1`
+- **JVM Target:** `17` (compatible with JDK 17 LTS and JDK 21 LTS)
 
 ---
 
-## 🛠️ Hướng Dẫn Mở Dự Án & Chạy Bài Học
+## Project Structure (12 Modules)
 
-### 1. Mở bằng IntelliJ IDEA (Khuyên dùng)
-1. Mở **IntelliJ IDEA** $\rightarrow$ Chọn **Open** $\rightarrow$ Trỏ tới thư mục **`D:\Kotlin_Journey`**.
-2. Đợi vài giây để IntelliJ đồng bộ cấu hình Gradle (`build.gradle.kts`).
-3. Mở bất kỳ file `Ex01...kt`, `Ex02...kt` nào trong các thư mục `lessonXX.../src/view/` và bấm nút **Run (`▶`)** màu xanh cạnh hàm `fun main()` để chạy thử và quan sát kết quả trên Console!
+| Module | Key Topics | Files (`src/`) |
+| :--- | :--- | :--- |
+| **`lesson01-basics-and-types`** | `val` vs `var` vs `const val`, JVM memory model (local vars, heap fields, closure capture), `Any`/`Unit`/`Nothing`, String templates, `==` vs `===`, Operator Overloading | `Ex01` – `Ex06` |
+| **`lesson02-null-safety-and-scope`** | Nullable types (`?`), Safe calls (`?.`), Elvis (`?:`), Smart casts (`is`), Safe casts (`as?`), Scope functions (`let`, `also`, `apply`, `run`, `with`), `lateinit var`, `by lazy` | `Ex01` – `Ex06`, `CustomerModels.kt` |
+| **`lesson03-control-flow-and-loops`** | Nullable `Boolean?`, `if-else` & exhaustive `when` expressions, Ranges (`..`, `..<`, `downTo`, `step`), Labeled `break@` / `continue@` | `Ex01` – `Ex05` |
+| **`lesson04-functions-and-extensions`** | Default/Named args, Higher-order functions, Extension functions, Kotlin DSL, `inline`/`noinline`/`crossinline`, Local vs Non-local returns, Closure capture | `Ex01` – `Ex07` |
+| **`lesson05-oop-classes-and-objects`** | Properties & backing `field`, Constructors & `init` order, Visibility (`internal`), `open` vs `final` (JDK vs CGLIB proxies), SAM interfaces, Nested vs `inner class` (`this@Outer`) | `Ex01` – `Ex07`, `Car.kt` |
+| **`lesson06-special-classes-and-delegation`** | `data class` (shallow `.copy()`, DTO vs JPA `@Entity` trade-offs), `enum class`, `sealed interface`, `object` & `companion object`, `@JvmInline value class`, Delegation (`by`) | `Ex01` – `Ex05` |
+| **`lesson07-arrays-and-collections`** | Primitive arrays (`IntArray` vs `Array<Int>`), Read-only (`List`) vs Mutable (`MutableList`), Shallow copy (`toList()`), Mutable aliasing, Shared mutable state & thread-safety | `Ex01` – `Ex06` |
+| **`lesson08-collection-pipelines-and-sequences`** | `filter`, `map`, `flatMap`, `associateBy` (in-memory indexing), `groupBy`, `partition`, `sumOf`, `fold`, Eager `Iterable` vs Lazy `Sequence`, Transaction exercises | `Ex01` – `Ex05`, `DomainModels.kt` |
+| **`lesson09-generics-exceptions-annotations`** | Variance (`out`/`in`), Type erasure by upper bound, `reified` limits with nested generics & Type Tokens, `require`/`check`/`runCatching`, `.use {}`, `@field:`/`@get:`/`@param:` targets | `Ex01` – `Ex05` |
+| **`lesson10-coroutines-basics`** | `suspend` mechanics, Concurrency vs Parallelism, `runBlocking`/`launch`/`async`, Dispatchers & Structured Concurrency, `Flow<T>`, Timeouts, `Mutex`, `flowOn`/`buffer`/`catch`, `StateFlow`/`SharedFlow` | `Ex01` – `Ex06` |
+| **`lesson11-java-interop-and-spring-readiness`** | Platform types (`T!`), `-Xjsr305=strict`, `@JvmStatic`/`@JvmOverloads`/`@JvmField`/`@Throws`, `plugin.spring` vs `plugin.jpa`, Pure-Kotlin Spring architecture simulation | `Ex01` – `Ex03`, `LegacyPaymentGateway.java` |
+| **`lesson12-final-assignment`** | **Capstone Project: Nova Shop** — End-to-end order management, data normalization, generic pagination, state transitions, and 5 business analytics reports | `Main.kt`, `NovaShopService.kt`, `DomainModels.kt`, `SampleData.kt` |
 
-### 2. Biên dịch kiểm tra bằng dòng lệnh (Gradle Wrapper)
-Từ thư mục `D:\Kotlin_Journey`, bạn có thể biên dịch toàn bộ 12 modules bằng lệnh:
+---
+
+## Recommended Learning Path
+
+1. **Core Backend Foundations (`lesson01` $\rightarrow$ `lesson09`):** Master syntax, null safety, functions/extensions, OOP, immutability, collection pipelines, generics, and annotation use-site targets.
+2. **Java Interop & Architecture Patterns (`lesson11`):** Understand Java-Kotlin interoperability and how Kotlin idioms map to layered backend architecture *(note: `Ex03` is a pure-Kotlin simulation, not a real Spring runtime)*.
+3. **Hands-on Capstone (`lesson12`):** Implement the **Nova Shop** assignment using idiomatic Kotlin before comparing with the reference solution.
+4. **Coroutines & Reactive Streams (`lesson10`):** Learn the fundamentals (`Ex01`–`Ex03`) early; study the advanced concurrency and Flow topics (`Ex04`–`Ex06`) when moving into asynchronous workloads or **Spring WebFlux**.
+
+---
+
+## Getting Started
+
+### Run in IntelliJ IDEA
+1. Open the **`Kotlin_Journey`** directory in IntelliJ IDEA.
+2. Select **JDK 17** or **JDK 21** as the Project SDK and sync Gradle.
+3. Open any `Ex0X...kt` file (or `lesson12-final-assignment/src/Main.kt`) and click the green **Run (`▶`)** icon next to `fun main()`.
+
+### Build via CLI
 ```powershell
 .\gradlew.bat classes
 ```
 
 ---
 
-## 📖 Tài Liệu Ôn Tập Kèm Theo
-- **[`kotlin_core_interview_notes.md`](./kotlin_core_interview_notes.md)**: Sổ tay hệ thống hóa **25 câu hỏi phỏng vấn & bẫy thực chiến** khi chuyển từ Java sang Kotlin & Spring Boot (phân tích sâu dưới góc độ JVM Bytecode).
+## Readiness Checklist Before Moving to Spring Boot
+
+- [ ] Clearly distinguish `val` (read-only reference), `List<T>` (read-only interface), shallow copy (`toList()`, `data class.copy()`), and deep immutability.
+- [ ] Use `?.`, `?:` (with `return`/`throw`), `as?`, `requireNotNull()`, and scope functions (`let`, `also`, `apply`, `run`, `with`) idiomatically.
+- [ ] Understand `inline`/`noinline`/`crossinline`, local vs non-local returns, and mutable closure capture.
+- [ ] Know why Kotlin classes are `final` by default, why nested classes are static by default, and how `kotlin("plugin.spring")` (`all-open`) differs from `kotlin("plugin.jpa")` (`no-arg`).
+- [ ] Understand why `@field:` / `@get:` / `@param:` use-site targets matter for constructor properties in validation and serialization.
+
+*(Next stage in a real Spring Boot project: Spring IoC container lifecycle, Spring MVC/Web, Jakarta Bean Validation runtime, Spring Data JPA/Hibernate persistence context & `@Transactional` propagation, `jackson-module-kotlin`, and JUnit 5 / MockK testing).*
+
+---
+
+## Study Notes & Official References
+
+- **[`kotlin_core_interview_notes.md`](./kotlin_core_interview_notes.md)** — 20 in-depth Q&A topics covering Kotlin Core, JVM bytecode mechanics, and Spring Boot readiness (in Vietnamese).
+- [Kotlin Official Documentation](https://kotlinlang.org/docs/home.html) | [Kotlin Coroutines Guide](https://kotlinlang.org/docs/coroutines-guide.html) | [Spring Framework Kotlin Support](https://docs.spring.io/spring-framework/reference/languages/kotlin.html)

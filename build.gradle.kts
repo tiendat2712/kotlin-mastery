@@ -42,7 +42,7 @@ subprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
-            // Bật -Xjsr305=strict giống hệt mặc định của Spring Boot Kotlin
+            // Bật -Xjsr305=strict giống mặc định của Spring Boot Kotlin
             // để kiểm tra chặt chẽ annotation @Nullable / @NonNull khi gọi code Java
             freeCompilerArgs.add("-Xjsr305=strict")
         }
@@ -50,5 +50,13 @@ subprojects {
 
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
+    }
+
+    tasks.withType<JavaExec>().configureEach {
+        jvmArgs(
+            "-Dfile.encoding=UTF-8",
+            "-Dsun.stdout.encoding=UTF-8",
+            "-Dsun.stderr.encoding=UTF-8"
+        )
     }
 }
