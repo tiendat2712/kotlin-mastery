@@ -12,7 +12,7 @@ import java.math.BigDecimal
  *        Quy tắc bắt buộc `throws IOException` hoặc `try-catch` hoàn toàn là luật riêng của trình biên dịch `javac`.
  *      + Trong thực tế phát triển phần mềm hiện đại (và như bạn đã thấy ở `D:\Java_Journey\lesson06-exception`
  *        cùng `lesson12-stream`), Checked Exception của Java gây ra 2 vấn đề lớn:
- *        (1) Làm "ô nhiễm" chữ ký hàm và phá hỏng Functional Programming: Bạn không thể gọi một hàm
+ *        (1) Làm "ô nhiễm" chữ ký hàm và gây cản trở Functional Programming: Bạn không thể gọi một hàm
  *            ném `IOException` bên trong `list.stream().map(x -> readConfig(x))` vì `Function<T, R>` không khai báo `throws`!
  *        (2) Dẫn đến anti-pattern bắt lỗi rỗng (`catch (Exception e) {}`) hoặc bọc lại vào `RuntimeException` ở khắp nơi.
  *      + Vì thế, Kotlin (cũng như C#, Scala, Swift) coi **mọi Exception đều là Unchecked**! Bạn chỉ bắt
@@ -45,7 +45,7 @@ import java.math.BigDecimal
  *      ```
  *    - Kotlin:
  *      ```kotlin
- *      require(amount > BigDecimal.ZERO) { "Số tiền phải dương: $amount" }
+ *      require(amount > BigDecimal.ZERO) { "So tien phai duong: $amount" }
  *      ```
  *
  * 3. SPRING KOTLIN CORNER:
@@ -70,52 +70,52 @@ class BankWallet(
 
     init {
         // 1. require: Kiểm tra tính hợp lệ của tham số truyền vào constructor
-        require(walletId.isNotBlank()) { "Mã ví (walletId) không được để trống!" }
-        require(initialBalance >= BigDecimal.ZERO) { "Số dư ban đầu không được âm: $initialBalance" }
+        require(walletId.isNotBlank()) { "Ma vi (walletId) khong duoc de trong!" }
+        require(initialBalance >= BigDecimal.ZERO) { "So du ban dau khong duoc am: $initialBalance" }
 
         // 2. requireNotNull: Vừa kiểm tra khác null, vừa smart-cast từ `String?` thành `String`!
         val validEmail = requireNotNull(ownerEmail?.trim()?.takeIf { it.isNotEmpty() }) {
-            "Email chủ ví [$walletId] không được null hoặc rỗng!"
+            "Email chu vi [$walletId] khong duoc null hoac rong!"
         }
         this.ownerEmail = validEmail.lowercase()
     }
 
     fun withdraw(amount: BigDecimal) {
         // Kiểm tra tham số đầu vào (Argument -> IllegalArgumentException)
-        require(amount > BigDecimal.ZERO) { "Số tiền rút phải lớn hơn 0 (nhận được: $amount)" }
+        require(amount > BigDecimal.ZERO) { "So tien rut phai lon hon 0 (nhan duoc: $amount)" }
 
         // 3. check: Kiểm tra trạng thái hiện tại của đối tượng (State -> IllegalStateException)
-        check(status == "ACTIVE") { "Chỉ được rút tiền khi ví đang ACTIVE (trạng thái hiện tại: $status)" }
-        check(balance >= amount) { "Số dư không đủ! Hiện có: $balance, yêu cầu rút: $amount" }
+        check(status == "ACTIVE") { "Chi duoc rut tien khi vi dang ACTIVE (trang thai hien tai: $status)" }
+        check(balance >= amount) { "So du khong du! Hien co: $balance, yeu cau rut: $amount" }
 
         balance -= amount // Toán tử `-=` trên BigDecimal
-        println("  -> [THÀNH CÔNG] Đã rút $amount từ ví $walletId ($ownerEmail). Số dư mới: $balance")
+        println("  -> [THANH CONG] Da rut $amount tu vi $walletId ($ownerEmail). So du moi: $balance")
     }
 
     fun freezeWallet() {
-        check(status != "CLOSED") { "Không thể đóng băng ví đã bị đóng vĩnh viễn (CLOSED)" }
+        check(status != "CLOSED") { "Khong the dong bang vi da bi dong vinh vien (CLOSED)" }
         status = "FROZEN"
     }
 
     fun getStatusDescription(): String = when (status) {
-        "ACTIVE" -> "Đang hoạt động bình thường"
-        "FROZEN" -> "Tạm khóa giao dịch"
-        "CLOSED" -> "Đã đóng vĩnh viễn"
+        "ACTIVE" -> "Dang hoat dong binh thuong"
+        "FROZEN" -> "Tam khoa giao dich"
+        "CLOSED" -> "Da dong vinh vien"
         // 4. error(...): Trả về kiểu `Nothing`, ném IllegalStateException cho nhánh không thể xảy ra
-        else -> error("Phát hiện trạng thái ví không xác định trong DB: '$status'")
+        else -> error("Phat hien trang thai vi khong xac dinh trong DB: '$status'")
     }
 }
 
 // Hàm sử dụng `try - catch` như một Expression trả về giá trị trực tiếp
 fun parseServerPort(rawConfig: String?): Int = try {
     val parsed = rawConfig?.trim()?.toInt() ?: 8080
-    require(parsed in 1..65535) { "Port nằm ngoài dải hợp lệ 1..65535: $parsed" }
+    require(parsed in 1..65535) { "Port nam ngoai dai hop le 1..65535: $parsed" }
     parsed // Giá trị trả về của nhánh try
 } catch (e: NumberFormatException) {
-    println("  -> [Cảnh báo] Cấu hình port '$rawConfig' không phải số nguyên hợp lệ, dùng mặc định 8080.")
+    println("  -> [Canh bao] Cau hinh port '$rawConfig' khong phai so nguyen hop le, dung mac dinh 8080.")
     8080 // Giá trị trả về của nhánh catch
 } catch (e: IllegalArgumentException) {
-    println("  -> [Cảnh báo] ${e.message}, dùng mặc định 8080.")
+    println("  -> [Canh bao] ${e.message}, dung mac dinh 8080.")
     8080
 }
 
@@ -125,39 +125,41 @@ fun main() {
     // =========================================================================
     // 1. `try - catch` LÀ MỘT BIỂU THỨC (EXPRESSION)
     // =========================================================================
-    println("1. Sử dụng `try - catch` như một Expression:")
+    println("1. Su dung `try - catch` nhu mot Expression:")
     val port1 = parseServerPort("9090")
     val port2 = parseServerPort("abc_xyz")
     val port3 = parseServerPort("99999")
-    println("  - Kết quả port1 = $port1, port2 = $port2, port3 = $port3")
+    println("  - Ket qua port1 = $port1, port2 = $port2, port3 = $port3")
+    check(port1 == 9090 && port2 == 8080 && port3 == 8080)
 
     // =========================================================================
     // 2. PRECONDITIONS: `require`, `requireNotNull`, `check`, `error`
     // =========================================================================
-    println("\n2. Thực hành Preconditions (`require`, `requireNotNull`, `check`, `error`):")
+    println("\n2. Thuc hanh Preconditions (`require`, `requireNotNull`, `check`, `error`):")
     val wallet = BankWallet(
         walletId = "W-001",
         ownerEmail = "  AN.NGUYEN@EXAMPLE.COM  ",
         initialBalance = BigDecimal("1000000")
     )
-    println("  - Khởi tạo ví thành công cho '${wallet.ownerEmail}', trạng thái: ${wallet.getStatusDescription()}")
+    println("  - Khoi tao vi thanh cong cho '${wallet.ownerEmail}', trang thai: ${wallet.getStatusDescription()}")
     wallet.withdraw(BigDecimal("350000"))
+    check(wallet.balance == BigDecimal("650000"))
 
     // Thử nghiệm các tình huống vi phạm quy tắc nghiệp vụ
-    println("\n3. Kiểm chứng thông báo lỗi từ Preconditions:")
+    println("\n3. Kiem chung thong bao loi tu Preconditions:")
 
     // 3a. Vi phạm `requireNotNull`
     try {
         BankWallet("W-002", "   ", BigDecimal("500000"))
     } catch (e: IllegalArgumentException) {
-        println("  - Bắt được IllegalArgumentException (requireNotNull): ${e.message}")
+        println("  - Bat duoc IllegalArgumentException (requireNotNull): ${e.message}")
     }
 
     // 3b. Vi phạm `require(amount > 0)`
     try {
         wallet.withdraw(BigDecimal("-50000"))
     } catch (e: IllegalArgumentException) {
-        println("  - Bắt được IllegalArgumentException (require): ${e.message}")
+        println("  - Bat duoc IllegalArgumentException (require): ${e.message}")
     }
 
     // 3c. Vi phạm `check(status == "ACTIVE")`
@@ -165,7 +167,7 @@ fun main() {
     try {
         wallet.withdraw(BigDecimal("100000"))
     } catch (e: IllegalStateException) {
-        println("  - Bắt được IllegalStateException (check): ${e.message}")
+        println("  - Bat duoc IllegalStateException (check): ${e.message}")
     }
 
     println("\n--- ___ * END EX03 * ___ ---")

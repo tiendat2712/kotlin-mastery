@@ -44,19 +44,21 @@ import java.nio.charset.StandardCharsets
  * 3. SPRING KOTLIN CORNER:
  *    - Khi gọi các dịch vụ bên ngoài không ổn định (Payment Gateway, Webhook, Redis Cache) trong Spring Boot,
  *      `runCatching { externalClient.fetchRate(currency) }.getOrElse { fallbackRate }` giúp code mạch lạc,
- *      dễ đọc hơn hẳn `try-catch` truyền thống.
- *    - Lưu ý nhỏ khi dùng `runCatching` trong **Kotlin Coroutines**: Nếu dùng bên trong `suspend fun`,
- *      cần tránh nuốt mất `CancellationException` (hoặc dùng `.onFailure { if (it is CancellationException) throw it }`).
+ *      dễ đọc hơn `try-catch` truyền thống.
+ *    - Lưu ý quan trọng khi dùng `runCatching` trong **Kotlin Coroutines**: Vì `runCatching` bắt mọi `Throwable`
+ *      (bao gồm cả `CancellationException`), nếu dùng bên trong `suspend fun`, bạn phải ném lại
+ *      `CancellationException` (`.onFailure { if (it is CancellationException) throw it }`) để không phá vỡ
+ *      cơ chế hủy Coroutine!
  */
 
 data class ExchangeRateQuote(val pair: String, val rate: Double)
 
 // Hàm giả lập gọi API tỷ giá ngoại tệ có thể thất bại
 fun fetchExchangeRateFromRemote(pair: String): ExchangeRateQuote {
-    require(pair.contains("/")) { "Cặp tiền tệ không đúng định dạng XXX/YYY: '$pair'" }
+    require(pair.contains("/")) { "Cap tien te khong dung dinh dang XXX/YYY: '$pair'" }
     if (pair == "USD/VND") return ExchangeRateQuote(pair, 25_450.0)
     if (pair == "JPY/VND") return ExchangeRateQuote(pair, 168.5)
-    throw IllegalStateException("Máy chủ tỷ giá đang bảo trì cho cặp tiền: $pair")
+    throw IllegalStateException("May chu ty gia dang bao tri cho cap tien: $pair")
 }
 
 fun main() {
@@ -65,7 +67,7 @@ fun main() {
     // =========================================================================
     // 1. FUNCTIONAL ERROR HANDLING VỚI `runCatching` VÀ `Result<T>`
     // =========================================================================
-    println("1. Xử lý lỗi dạng chuỗi (Pipeline) với `runCatching` & `Result<T>`:")
+    println("1. Xu ly loi dang chuoi (Pipeline) voi `runCatching` & `Result<T>`:")
 
     // Tình huống A: Thành công -> biến đổi kết quả bằng `.map` -> lấy giá trị
     val amountInVndResult: Result<Double> = runCatching {
@@ -74,38 +76,40 @@ fun main() {
         // Chỉ chạy khi thành công!
         100.0 * quote.rate
     }.onSuccess { totalVnd ->
-        println("  - [onSuccess] Quy đổi 100 USD thành công: $totalVnd VNĐ")
+        println("  - [onSuccess] Quy doi 100 USD thanh cong: $totalVnd VND")
     }.onFailure { ex ->
-        println("  - [onFailure] Lỗi: ${ex.message}")
+        println("  - [onFailure] Loi: ${ex.message}")
     }
-    println("  - Giá trị lấy từ Result (getOrDefault): ${amountInVndResult.getOrDefault(0.0)}")
+    println("  - Gia tri lay tu Result (getOrDefault): ${amountInVndResult.getOrDefault(0.0)}")
+    check(amountInVndResult.getOrNull() == 2_545_000.0)
 
     // Tình huống B: Thất bại khi gọi API -> dùng `getOrElse` để cung cấp giá trị dự phòng (Fallback)
     val eurRate: Double = runCatching {
         fetchExchangeRateFromRemote("EUR/VND").rate
     }.onFailure { ex ->
-        println("  - [Cảnh báo Cache/API] Không lấy được EUR/VND (${ex.message}) -> Dùng tỷ giá dự phòng!")
+        println("  - [Canh bao Cache/API] Khong lay duoc EUR/VND (${ex.message}) -> Dung ty gia du phong!")
     }.getOrElse {
         27_500.0 // Giá trị fallback khi có lỗi
     }
-    println("  - Tỷ giá EUR/VND sau khi fallback: $eurRate")
+    println("  - Ty gia EUR/VND sau khi fallback: $eurRate")
+    check(eurRate == 27_500.0)
 
     // Tình huống C: Dùng `.fold(onSuccess = ..., onFailure = ...)` để quy về chuỗi thông báo cho UI/API
     val apiMessage: String = runCatching {
         fetchExchangeRateFromRemote("INVALID_PAIR")
     }.fold(
-        onSuccess = { quote -> "Thành công: 1 ${quote.pair} = ${quote.rate}" },
-        onFailure = { ex -> "Thất bại (${ex::class.simpleName}): ${ex.message}" }
+        onSuccess = { quote -> "Thanh cong: 1 ${quote.pair} = ${quote.rate}" },
+        onFailure = { ex -> "That bai (${ex::class.simpleName}): ${ex.message}" }
     )
-    println("  - Kết quả `.fold(...)`: $apiMessage")
+    println("  - Ket qua `.fold(...)`: $apiMessage")
 
     // =========================================================================
     // 2. QUẢN LÝ TÀI NGUYÊN TỰ ĐỘNG VỚI `.use { ... }` (THAY THẾ TRY-WITH-RESOURCES)
     // =========================================================================
-    println("\n2. Quản lý tài nguyên tự động với `.use { ... }` (AutoCloseable / Closeable):")
+    println("\n2. Quan ly tai nguyen tu dong voi `.use { ... }` (AutoCloseable / Closeable):")
 
     val rawCsvData = """
-        # Danh sách đơn hàng xuất kho
+        # Danh sach don hang xuat kho
         O001,504000
         O002,997500
         
@@ -122,11 +126,12 @@ fun main() {
             .filter { it.isNotEmpty() && !it.startsWith("#") }
             .map { line ->
                 val parts = line.split(",")
-                "Đơn ${parts[0]} -> ${parts[1]} VNĐ"
+                "Don ${parts[0]} -> ${parts[1]} VND"
             }
             .toList()
     }
-    println("  - Đọc dữ liệu bằng BufferedReader.use { ... }: $validOrderSummary")
+    println("  - Doc du lieu bang BufferedReader.use { ... }: $validOrderSummary")
+    check(validOrderSummary.size == 3)
 
     // Minh họa kết hợp `.use` với ByteArrayOutputStream để ghi dữ liệu nhị phân trong bộ nhớ
     val exportedBytes: ByteArray = ByteArrayOutputStream().use { outputStream ->
@@ -137,7 +142,7 @@ fun main() {
         }
         outputStream.toByteArray()
     }
-    println("  - Đã xuất ra ByteArrayOutputStream.use (${exportedBytes.size} bytes):")
+    println("  - Da xuat ra ByteArrayOutputStream.use (${exportedBytes.size} bytes):")
     println(String(exportedBytes, StandardCharsets.UTF_8).prependIndent("    | "))
 
     println("\n--- ___ * END EX04 * ___ ---")
