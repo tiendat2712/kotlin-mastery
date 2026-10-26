@@ -48,17 +48,17 @@ fun main() {
     // ========================================================================
     // 1. `setOf` (LinkedHashSet) vs `sortedSetOf` (TreeSet)
     // ========================================================================
-    println("\n[1] `setOf` giữ nguyên thứ tự chèn (LinkedHashSet) vs `sortedSetOf` (TreeSet):")
+    println("\n[1] `setOf` giu nguyen thu tu chen (LinkedHashSet) vs `sortedSetOf` (TreeSet):")
     val insertionOrderSet = setOf("ZaloPay", "MoMo", "VNPay", "MoMo", "ZaloPay")
     val alphabeticalSet = sortedSetOf("ZaloPay", "MoMo", "VNPay", "ApplePay")
 
-    println("  setOf (loại trùng + giữ thứ tự chèn) : $insertionOrderSet")
-    println("  sortedSetOf (TreeSet sắp xếp A->Z)   : $alphabeticalSet")
+    println("  setOf (loai trung + giu thu tu chen) : $insertionOrderSet")
+    println("  sortedSetOf (TreeSet sap xep A->Z)   : $alphabeticalSet")
 
     // ========================================================================
     // 2. Đại số tập hợp: `union`, `intersect`, `subtract` (Infix notation)
     // ========================================================================
-    println("\n[2] Đại số tập hợp (So sánh với addAll / retainAll / removeAll trong Java):")
+    println("\n[2] Dai so tap hop (So sanh voi addAll / retainAll / removeAll trong Java):")
     val currentDbRoles = setOf("ROLE_USER", "ROLE_VIEWER", "ROLE_LEGACY")
     val requestedRoles = setOf("ROLE_USER", "ROLE_ADMIN", "ROLE_EDITOR")
 
@@ -70,12 +70,12 @@ fun main() {
     val rolesToGrant = requestedRoles subtract currentDbRoles
     val rolesToRevoke = currentDbRoles subtract requestedRoles
 
-    println("  Quyền hiện có trong DB                : $currentDbRoles")
-    println("  Quyền mới yêu cầu từ giao diện Admin  : $requestedRoles")
-    println("  -> Hợp (`union`)                      : $allDistinctRoles")
-    println("  -> Giao (`intersect` - giữ nguyên)    : $unchangedRoles")
-    println("  -> Cần cấp thêm (`requested subtract db`) : $rolesToGrant")
-    println("  -> Cần thu hồi  (`db subtract requested`) : $rolesToRevoke")
+    println("  Quyen hien co trong DB                : $currentDbRoles")
+    println("  Quyen moi yeu cau tu giao dien Admin  : $requestedRoles")
+    println("  -> Hop (`union`)                      : $allDistinctRoles")
+    println("  -> Giao (`intersect` - giu nguyen)    : $unchangedRoles")
+    println("  -> Can cap them (`requested subtract db`) : $rolesToGrant")
+    println("  -> Can thu hoi  (`db subtract requested`) : $rolesToRevoke")
 
     println("\n--- ___ * FINISH: Ex04SetsAndEquality * ___ ---")
 }

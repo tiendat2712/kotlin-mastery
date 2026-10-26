@@ -47,45 +47,45 @@ fun main() {
     // ========================================================================
     // 1. Boxed Array (`Array<Int>` -> `Integer[]`) vs Primitive Array (`IntArray` -> `int[]`)
     // ========================================================================
-    println("\n[1] Phân biệt Boxed `Array<Int>` và Primitive `IntArray` dưới JVM Bytecode:")
+    println("\n[1] Phan biet Boxed `Array<Int>` va Primitive `IntArray` duoi JVM Bytecode:")
     val boxedArray: Array<Int> = arrayOf(10, 20, 30)
     val primitiveArray: IntArray = intArrayOf(10, 20, 30)
 
-    println("  Kiểu JVM của Array<Int> : ${boxedArray.javaClass.simpleName} (Boxed object array)")
-    println("  Kiểu JVM của IntArray   : ${primitiveArray.javaClass.simpleName} (Contiguous primitive array)")
+    println("  Kieu JVM cua Array<Int> : ${boxedArray.javaClass.simpleName} (Boxed object array)")
+    println("  Kieu JVM cua IntArray   : ${primitiveArray.javaClass.simpleName} (Contiguous primitive array)")
 
-    // Khởi tạo mảng bằng hàm конструкtơ kết hợp Lambda: `IntArray(size) { index -> ... }`
+    // Khởi tạo mảng bằng hàm constructor kết hợp Lambda: `IntArray(size) { index -> ... }`
     val squares = IntArray(5) { i -> (i + 1) * (i + 1) }
-    println("  Khởi tạo bằng Lambda    : ${squares.contentToString()}")
+    println("  Khoi tao bang Lambda    : ${squares.contentToString()}")
 
     // ========================================================================
     // 2. Truy cập phần tử, duyệt mảng (`withIndex`) và Sắp xếp (`sortedArray` vs `sort`)
     // ========================================================================
-    println("\n[2] Sắp xếp tạo mảng mới (`sortedArrayDescending`) vs Sắp xếp tại chỗ (`sort`):")
+    println("\n[2] Sap xep tao mang moi (`sortedArrayDescending`) vs Sap xep tai cho (`sort`):")
     val scores = intArrayOf(75, 92, 60, 88, 95)
 
     // `sortedArrayDescending()` trả về một mảng MỚI trên HEAP, giữ nguyên mảng `scores` gốc
     val descCopy = scores.sortedArrayDescending()
-    println("  Bản sao sắp xếp giảm dần : ${descCopy.contentToString()}")
-    println("  Mảng gốc `scores` vẫn là : ${scores.contentToString()}")
+    println("  Ban sao sap xep giam dan : ${descCopy.contentToString()}")
+    println("  Mang goc `scores` van la : ${scores.contentToString()}")
 
     // `sort()` thay đổi trực tiếp (in-place mutation) trên mảng `scores` gốc
     scores.sort()
-    println("  Sau khi gọi scores.sort(): ${scores.contentToString()}")
+    println("  Sau khi goi scores.sort(): ${scores.contentToString()}")
 
     // ========================================================================
     // 3. So sánh mảng: `==` vs `contentEquals` & `contentDeepEquals`
     // ========================================================================
-    println("\n[3] So sánh mảng 1 chiều và 2 chiều (`contentEquals` vs `contentDeepEquals`):")
+    println("\n[3] So sanh mang 1 chieu va 2 chieu (`contentEquals` vs `contentDeepEquals`):")
     val a1 = intArrayOf(1, 2, 3)
     val a2 = intArrayOf(1, 2, 3)
 
-    println("  a1 == a2 (SAI - so sánh địa chỉ HEAP) : ${a1 == a2}")
-    println("  a1.contentEquals(a2) (ĐÚNG)           : ${a1.contentEquals(a2)}")
+    println("  a1 == a2 (SAI - so sanh dia chi HEAP) : ${a1 == a2}")
+    println("  a1.contentEquals(a2) (DUNG)           : ${a1.contentEquals(a2)}")
 
     val matrix1 = arrayOf(intArrayOf(1, 2), intArrayOf(3, 4))
     val matrix2 = arrayOf(intArrayOf(1, 2), intArrayOf(3, 4))
-    println("  Ma trận 2D: ${matrix1.contentDeepToString()} | contentDeepEquals = ${matrix1.contentDeepEquals(matrix2)}")
+    println("  Ma tran 2D: ${matrix1.contentDeepToString()} | contentDeepEquals = ${matrix1.contentDeepEquals(matrix2)}")
 
     println("\n--- ___ * FINISH: Ex01ArraysPrimitiveVsBoxed * ___ ---")
 }

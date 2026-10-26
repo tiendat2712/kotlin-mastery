@@ -26,24 +26,36 @@ package view
  * `java.util.List` của JVM (thường là `java.util.ArrayList` trên HEAP), nhưng trình biên dịch
  * Kotlin đóng vai trò "người gác cổng", chặn mọi lệnh sửa đổi nếu biến có kiểu là `List<T>`!
  *
- * 2. PHÂN BIỆT `val`/`var` (CON TRỎ TRÊN STACK) vs `List`/`MutableList` (DỮ LIỆU TRÊN HEAP):
+ * 2. PHÂN BIỆT RẠCH RÒI 4 KHÁI NIỆM: `val` vs `List<T>` vs `toList()` vs DEEP IMMUTABILITY:
  * ----------------------------------------------------------------------------
- * Đây là câu hỏi phỏng vấn cực kỳ phổ biến:
- *   - `val items = mutableListOf("A", "B")`:
- *     + `val`: Khóa con trỏ trên STACK (không thể gán `items = mutableListOf("C")`).
- *     + `mutableListOf`: Đối tượng `ArrayList` trên HEAP vẫn cho phép gọi `items.add("C")`!
- *   - `var items = listOf("A", "B")`:
- *     + `listOf`: Không thể sửa phần tử bên trong danh sách hiện tại (`items.add` không tồn tại).
- *     + `var`: Cho phép trỏ biến `items` sang một danh sách hoàn toàn mới trên HEAP (`items = items + "C"`).
+ * Rất nhiều lập trình viên nhầm tưởng viết `val items: List<T>` là "bất biến hoàn toàn".
+ * Thực chất bạn cần phân biệt chính xác 4 tầng bảo vệ sau:
+ *   1. **`val` (Read-only Reference)**:
+ *      Chỉ khóa biến tham chiếu (trên STACK hoặc field), ngăn không cho gán lại `=` sang
+ *      một đối tượng khác (`items = anotherList`). Nó KHÔNG ngăn việc sửa dữ liệu bên trong HEAP!
+ *   2. **`List<T>` (Read-only Interface / View)**:
+ *      Là một **giao diện chỉ đọc** (thiếu các hàm `add`, `remove`, `clear`), **KHÔNG phải là lời
+ *      đảm bảo bất biến (NOT a guarantee of immutability)**! Nếu có một biến `MutableList<T>`
+ *      khác đang cùng trỏ tới danh sách đó (aliasing), dữ liệu qua góc nhìn `List<T>` vẫn thay đổi!
+ *   3. **`.toList()` (Shallow Defensive Copy)**:
+ *      Tạo một **bản sao nông (shallow copy)** của vỏ danh sách tại thời điểm gọi. Nó bảo vệ
+ *      danh sách gốc khỏi việc thêm/xóa phần tử (`add`/`remove`) ở danh sách ngoài, nhưng **KHÔNG
+ *      sao chép sâu (deep-copy)** các phần tử nằm bên trong!
+ *   4. **Deep Immutability (Bất biến sâu thực sự)**:
+ *      Đòi hỏi CẢ HAI điều kiện:
+ *        (a) Vỏ Collection không thể bị sửa đổi (và không bị lộ tham chiếu `MutableList` ra ngoài), VÀ
+ *        (b) Bản thân kiểu phần tử `T` bên trong cũng phải bất biến sâu (ví dụ `String`, `Int`,
+ *            hoặc `data class` chỉ chứa các trường `val` thuộc kiểu bất biến).
+ *      *(Xem tiếp Bài 06 `Ex06ImmutabilityAliasingAndSharedState.kt` để thực hành sâu về các cạm bẫy này!)*
  *
  * 3. SPRING KOTLIN CORNER (DEFENSIVE COPYING & ENCAPSULATION):
  * ----------------------------------------------------------------------------
  * Trong Domain Model hoặc Stateful Service:
  *   - Bên trong class, bạn giữ `private val _orders = mutableListOf<String>()` để thêm đơn hàng.
- *   - Khi trả ra ngoài cho tầng Controller, nếu bạn chỉ ép kiểu `val orders: List<String> get() = _orders`,
- *     kẻ xấu vẫn có thể ép kiểu ngược `(service.orders as MutableList).clear()`!
- *   - Để bảo vệ tuyệt đối vùng nhớ HEAP nội bộ, hãy dùng `.toList()` (Defensive Copy) hoặc
- *     trả về Read-Only interface kết hợp bản sao bất biến!
+ *   - Khi trả ra ngoài cho tầng Controller, nếu bạn chỉ trả về `val orders: List<String> get() = _orders`,
+ *     bên ngoài vẫn thấy sự thay đổi ngầm hoặc ép kiểu ngược `(service.orders as MutableList).clear()`!
+ *   - Hãy dùng `.toList()` (Defensive Copy) kết hợp với phần tử bất biến (`String`, Value Object bất biến)
+ *     để bảo vệ trạng thái nội bộ!
  */
 
 private class OrderCartService {
@@ -51,12 +63,12 @@ private class OrderCartService {
     private val _items: MutableList<String> = mutableListOf()
 
     // Cấp quyền chỉ đọc (Read-only view) kèm Defensive Copy (`.toList()`)
-    // để đảm bảo bên ngoài không bao giờ làm hỏng danh sách `_items` bên trong
+    // Vì phần tử là `String` (bất biến), bản sao này an toàn trước các thao tác bên ngoài.
     val items: List<String>
         get() = _items.toList()
 
     fun addItem(sku: String) {
-        require(sku.isNotBlank()) { "Mã sản phẩm không được trống" }
+        require(sku.isNotBlank()) { "Ma san pham khong duoc trong" }
         _items.add(sku)
     }
 }
@@ -67,7 +79,7 @@ fun main() {
     // ========================================================================
     // 1. Read-Only `List<T>` vs Mutable `MutableList<T>`
     // ========================================================================
-    println("\n[1] Sự khác biệt giữa `listOf` (Read-Only) và `mutableListOf` (Mutable):")
+    println("\n[1] Su khac biet giua `listOf` (Read-Only Interface) va `mutableListOf` (Mutable):")
     val readOnlyRoles: List<String> = listOf("ROLE_USER", "ROLE_AUDITOR")
     val mutableRoles: MutableList<String> = mutableListOf("ROLE_USER", "ROLE_AUDITOR")
 
@@ -78,28 +90,28 @@ fun main() {
     println("  mutableRoles  : $mutableRoles")
 
     // ========================================================================
-    // 2. Phân biệt `val` (khóa tham chiếu STACK) vs `List` (khóa sửa đổi HEAP)
+    // 2. Phân biệt `val` vs `var` khi kết hợp với Read-Only `List<String>`
     // ========================================================================
-    println("\n[2] Kết hợp chuẩn mực nhất: `val` + `listOf` (Bất biến cả STACK lẫn HEAP):")
+    println("\n[2] Phan biet `val` (khoa gan lai `=`) va `List<T>` (giao dien khong co ham add/remove):")
     var rebindableList: List<String> = listOf("Java 17")
     // Toán tử `+` trên Read-only List KHÔNG sửa list cũ mà tạo ra 1 List MỚI trên HEAP
     rebindableList = rebindableList + "Kotlin 2.0" + "Spring Boot 3"
-    println("  Danh sách sau khi tạo bản sao mới bằng toán tử `+`: $rebindableList")
+    println("  Danh sach sau khi tao ban sao moi bang toan tu `+`: $rebindableList")
 
     // ========================================================================
     // 3. Bảo vệ trạng thái nội bộ với Defensive Copy (`.toList()`)
     // ========================================================================
-    println("\n[3] Defensive Copy (`.toList()`) bảo vệ dữ liệu trong Service:")
+    println("\n[3] Defensive Copy (`.toList()`) bao ve cau truc danh sach trong Service:")
     val cart = OrderCartService()
     cart.addItem("IPHONE-16-PRO")
     cart.addItem("AIRPODS-PRO-2")
 
     val snapshot = cart.items
-    println("  Snapshot lần 1: $snapshot")
+    println("  Snapshot lan 1: $snapshot")
 
     cart.addItem("MACBOOK-PRO-M4")
-    println("  Snapshot lần 1 vẫn giữ nguyên (nhờ .toList()): $snapshot")
-    println("  Snapshot hiện tại của giỏ hàng               : ${cart.items}")
+    println("  Snapshot lan 1 van giu nguyen (nho .toList()): $snapshot")
+    println("  Snapshot hien tai cua gio hang               : ${cart.items}")
 
     println("\n--- ___ * FINISH: Ex02ReadOnlyVsMutableCollections * ___ ---")
 }

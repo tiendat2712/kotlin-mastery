@@ -44,7 +44,7 @@ fun main() {
     // ========================================================================
     // 1. Khởi tạo Map (`mapOf`, `buildMap`) và Truy cập an toàn
     // ========================================================================
-    println("\n[1] Khởi tạo Map và các cách truy cập Key:")
+    println("\n[1] Khoi tao Map va cac cach truy cap Key:")
     val countryMap: Map<String, String> = mapOf(
         "VN" to "Vietnam",
         "JP" to "Japan",
@@ -52,13 +52,13 @@ fun main() {
     )
 
     println("  countryMap[\"VN\"]                  : ${countryMap["VN"]}")
-    println("  countryMap[\"US\"] (không tồn tại)  : ${countryMap["US"]}")
+    println("  countryMap[\"US\"] (khong ton tai)  : ${countryMap["US"]}")
     println("  countryMap.getOrDefault(\"US\", ..) : ${countryMap.getOrDefault("US", "Not Configured")}")
 
     // ========================================================================
     // 2. Gom nhóm / Caching siêu tốc với `getOrPut(key) { ... }`
     // ========================================================================
-    println("\n[2] Sử dụng `getOrPut` để gom nhóm nhân viên theo phòng ban:")
+    println("\n[2] Su dung `getOrPut` de gom nhom nhan vien theo phong ban:")
     val rawRecords = listOf(
         "Backend" to "An",
         "Frontend" to "Binh",
@@ -73,19 +73,19 @@ fun main() {
         // lưu vào Map rồi `.add(empName)` ngay trên cùng 1 dòng!
         employeesByDept.getOrPut(dept) { mutableListOf() }.add(empName)
     }
-    println("  Kết quả gom nhóm: $employeesByDept")
+    println("  Ket qua gom nhom: $employeesByDept")
 
     // ========================================================================
     // 3. Duyệt Map với Destructuring & Biến đổi Map với `mapValues` / `mapKeys`
     // ========================================================================
-    println("\n[3] Duyệt Map với Destructuring `for ((key, value) in map)` & `mapValues`:")
+    println("\n[3] Duyet Map voi Destructuring `for ((key, value) in map)` & `mapValues`:")
     for ((dept, members) in employeesByDept) {
-        println("  - Phòng $dept (${members.size} người): ${members.joinToString(", ")}")
+        println("  - Phong $dept (${members.size} nguoi): ${members.joinToString(", ")}")
     }
 
     // Biến đổi Map<String, List<String>> -> Map<String, Int> (đếm quân số từng phòng)
     val headcountByDept: Map<String, Int> = employeesByDept.mapValues { (_, members) -> members.size }
-    println("  Sau khi .mapValues (Quân số từng phòng): $headcountByDept")
+    println("  Sau khi .mapValues (Quan so tung phong): $headcountByDept")
 
     println("\n--- ___ * FINISH: Ex05MapsAndDestructuring * ___ ---")
 }

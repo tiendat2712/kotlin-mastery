@@ -49,27 +49,27 @@ fun main() {
     // ========================================================================
     // 1. Khởi tạo với `listOfNotNull` và Builder DSL `buildList { ... }`
     // ========================================================================
-    println("\n[1] Khởi tạo danh sách với `listOfNotNull` & `buildList`:")
+    println("\n[1] Khoi tao danh sach voi `listOfNotNull` & `buildList`:")
     val optionalPromoCode: String? = null
     val activeTags = listOfNotNull("FLASH_SALE", optionalPromoCode, "FREE_SHIP")
-    println("  listOfNotNull : $activeTags (đã tự động bỏ qua biến null)")
+    println("  listOfNotNull : $activeTags (da tu dong bo qua bien null)")
 
     val isVipCustomer = true
     val menuItems: List<String> = buildList {
-        add("Trang chủ")
-        add("Sản phẩm")
+        add("Trang chu")
+        add("San pham")
         if (isVipCustomer) {
-            add("Phòng chờ VIP")
-            add("Ưu đãi độc quyền")
+            add("Phong cho VIP")
+            add("Uu dai doc quyen")
         }
-        add("Đăng xuất")
+        add("Dang xuat")
     }
     println("  buildList     : $menuItems")
 
     // ========================================================================
     // 2. Truy cập phần tử an toàn (`getOrNull`, `getOrElse`, `firstOrNull`)
     // ========================================================================
-    println("\n[2] Truy cập an toàn không sợ IndexOutOfBoundsException:")
+    println("\n[2] Truy cap an toan khong so IndexOutOfBoundsException:")
     val servers = listOf("srv-hn-01", "srv-hcm-01", "srv-dn-01")
     println("  servers[0]               : ${servers[0]}")
     println("  servers.getOrNull(99)    : ${servers.getOrNull(99)}")
@@ -79,11 +79,11 @@ fun main() {
     // ========================================================================
     // 3. Toán tử `+` / `-`, Slicing (`take`, `drop`), `chunked` & `windowed`
     // ========================================================================
-    println("\n[3] Cắt lát (`take`, `drop`), Chia lô (`chunked`) & Cửa sổ trượt (`windowed`):")
+    println("\n[3] Cat lat (`take`, `drop`), Chia lo (`chunked`) & Cua so truot (`windowed`):")
     val orderIds = (1..8).map { "ORD-$it" }
-    println("  Danh sách gốc (8 đơn)    : $orderIds")
-    println("  take(3) (3 đơn đầu)      : ${orderIds.take(3)}")
-    println("  drop(5) (bỏ 5 đơn đầu)   : ${orderIds.drop(5)}")
+    println("  Danh sach goc (8 don)    : $orderIds")
+    println("  take(3) (3 don dau)      : ${orderIds.take(3)}")
+    println("  drop(5) (bo 5 don dau)   : ${orderIds.drop(5)}")
 
     // Chia lô mỗi batch 3 đơn hàng để xử lý Batch Insert / Batch API
     val batches: List<List<String>> = orderIds.chunked(3)
@@ -99,9 +99,9 @@ fun main() {
     // ========================================================================
     // 4. Destructuring trên List
     // ========================================================================
-    println("\n[4] Destructuring lấy nhanh các phần tử đầu tiên của List:")
+    println("\n[4] Destructuring lay nhanh cac phan tu dau tien cua List:")
     val (goldMedal, silverMedal, bronzeMedal) = listOf("Team Kotlin", "Team Java", "Team Go", "Team Rust")
-    println("  Huy chương: Vàng='$goldMedal', Bạc='$silverMedal', Đồng='$bronzeMedal'")
+    println("  Huy chuong: Vang='$goldMedal', Bac='$silverMedal', Dong='$bronzeMedal'")
 
     println("\n--- ___ * FINISH: Ex03ListsAndDestructuring * ___ ---")
 }
