@@ -17,7 +17,7 @@ import bean.Customer
  *    - **Tại sao bên phải `?:` có thể viết `return` hoặc `throw Exception`?**
  *      + Như đã học ở Lesson 01 (`Ex03`), biểu thức `throw ...` và `return ...` trong Kotlin có kiểu là `Nothing`
  *        (kiểu con của mọi kiểu).
- *      + Do đó, `val customer: Customer = findById(id) ?: throw IllegalArgumentException(...)` hợp lệ 100% về mặt
+ *      + Do đó, `val customer: Customer = findById(id) ?: throw IllegalArgumentException(...)` hoàn toàn hợp lệ về mặt
  *        kiểu dữ liệu và giúp biến `customer` trở thành Non-Null `Customer` ngay từ dòng đó!
  *    - **Toán tử Not-Null Assertion (`!!`)**:
  *      + Ép buộc chuyển `T?` thành `T`. Dưới Bytecode, nó chèn `Intrinsics.checkNotNull(obj)`.
@@ -37,9 +37,10 @@ import bean.Customer
  *
  * 3. SPRING KOTLIN CORNER:
  *    - Cặp bài trùng `?: throw ResponseStatusException(HttpStatus.NOT_FOUND, ...)` hoặc
- *      `?: throw EntityNotFoundException(...)` là **Idiom số 1** xuất hiện ở hầu hết mọi hàm `@Service`
+ *      `?: throw EntityNotFoundException(...)` là **Idiom phổ biến bậc nhất** ở tầng `@Service`
  *      trong các dự án Spring Boot Kotlin thực tế!
- *    - Tuyệt đối **TRÁNH dùng `!!`** trong code nghiệp vụ Production (Code Review thường cấm `!!` trừ trong Unit Test).
+ *    - Khuyến nghị: Hạn chế tối đa dùng `!!` trong code nghiệp vụ Production (chỉ nên dùng trong Unit Test
+ *      hoặc khi trình biên dịch không thể suy luận nhưng bạn đã kiểm chứng chắc chắn khác null).
  * =====================================================================
  */
 
@@ -47,13 +48,13 @@ import bean.Customer
 private val mockCustomerDb = mapOf(
     "CUST-100" to Customer(
         id = "CUST-100",
-        name = "Phạm Minh Tuấn",
+        name = "Pham Minh Tuan",
         email = "tuan.pham@kotlin.vn",
-        address = Address(street = "01 Đại Cồ Việt", city = "Hà Nội")
+        address = Address(street = "01 Dai Co Viet", city = "Ha Noi")
     ),
     "CUST-200" to Customer(
         id = "CUST-200",
-        name = "Hoàng Thu Trang",
+        name = "Hoang Thu Trang",
         email = null,
         address = null
     )
@@ -68,25 +69,27 @@ fun main() {
     // =================================================================
     // 1. Dùng Elvis `?:` để cung cấp giá trị mặc định (Default Value)
     // =================================================================
-    println("1. [Elvis Default Value] Chuyển kiểu Nullable (String?) về Non-Null (String):")
+    println("1. [Elvis Default Value] Chuyen kieu Nullable (String?) ve Non-Null (String):")
     val customerWithNulls: Customer? = findCustomer("CUST-200")
 
     // Chú ý kiểu của `city` và `email` đã trở thành `String` (Non-Null), KHÔNG còn dấu `?` nữa!
     val city: String = customerWithNulls?.address?.city ?: "Unknown City"
     val email: String = customerWithNulls?.email ?: "no-reply@default.local"
+    check(city == "Unknown City" && email == "no-reply@default.local")
 
-    println("   -> Khách hàng: ${customerWithNulls?.name}")
-    println("   -> Thành phố (đã qua Elvis `?:`): $city")
-    println("   -> Email (đã qua Elvis `?:`):     $email\n")
+    println("   -> Khach hang: ${customerWithNulls?.name}")
+    println("   -> Thanh pho (da qua Elvis `?:`): $city")
+    println("   -> Email (da qua Elvis `?:`):     $email\n")
 
     // =================================================================
     // 2. [Spring Kotlin Idiom] Kết hợp Elvis `?:` với `return` và `throw`
     // =================================================================
-    println("2. [Spring Service Idiom] Dùng Elvis `?:` để Guard Clause (return sớm hoặc throw Exception):")
+    println("2. [Spring Service Idiom] Dung Elvis `?:` de Guard Clause (return som hoac throw Exception):")
 
     // 2a. Trường hợp tìm thấy khách hàng
     val validCustomer = getVerifiedCustomerOrThrow("CUST-100")
-    println("   -> Tìm thấy khách hàng hợp lệ: ${validCustomer.name} (ID: ${validCustomer.id})")
+    check(validCustomer.id == "CUST-100")
+    println("   -> Tim thay khach hang hop le: ${validCustomer.name} (ID: ${validCustomer.id})")
 
     // 2b. Trường hợp dùng `?: return` để thoát hàm sớm an toàn
     sendWelcomeNotification(customerId = "CUST-200") // Khách hàng không có email -> thoát sớm
@@ -96,24 +99,24 @@ fun main() {
     try {
         getVerifiedCustomerOrThrow("CUST-999")
     } catch (ex: IllegalArgumentException) {
-        println("   -> [Bắt ngoại lệ từ `?: throw`]: ${ex.message}\n")
+        println("   -> [Bat ngoai le tu `?: throw`]: ${ex.message}\n")
     }
 
     // =================================================================
-    // 3. Toán tử `!!` (Not-Null Assertion) và tại sao nó là Anti-Pattern
+    // 3. Toán tử `!!` (Not-Null Assertion) và tại sao cần hạn chế lạm dụng
     // =================================================================
-    println("3. [Not-Null Assertion `!!`] Cách hoạt động và hậu quả khi lạm dụng:")
-    val definitelyPresent: String? = "Dữ liệu chắc chắn không null"
-    println("   -> Gọi `definitelyPresent!!.length`: ${definitelyPresent!!.length}")
+    println("3. [Not-Null Assertion `!!`] Cach hoat dong va hau qua khi lam dung:")
+    val definitelyPresent: String? = "Du lieu chac chan khong null"
+    println("   -> Goi `definitelyPresent!!.length`: ${definitelyPresent!!.length}")
 
     val unexpectedNull: String? = null
     try {
         // Dòng dưới đây cố tình dùng `!!` trên biến null để minh họa lỗi NullPointerException
         val len = unexpectedNull!!.length
-        println("   -> Độ dài: $len")
+        println("   -> Do dai: $len")
     } catch (npe: NullPointerException) {
-        println("   -> [CẢNH BÁO] Dùng `unexpectedNull!!` đã làm nổ NullPointerException!")
-        println("   => Quy tắc Production: Luôn ưu tiên `?.`, `?:`, hoặc Smart Cast thay vì `!!`.")
+        println("   -> [CANH BAO] Dung `unexpectedNull!!` da lam no NullPointerException!")
+        println("   => Quy tac Production: Uu tien `?.`, `?:`, hoac Smart Cast thay vi `!!`.")
     }
 
     println("\n--- ___ * END: Ex02ElvisAndNotNullAssertion * ___ ---")
@@ -130,8 +133,8 @@ private fun getVerifiedCustomerOrThrow(id: String): Customer {
 private fun sendWelcomeNotification(customerId: String) {
     val customer = findCustomer(customerId) ?: return
     val targetEmail = customer.email ?: run {
-        println("   -> [Skip] Bỏ qua gửi mail cho ${customer.name} vì chưa đăng ký email.")
+        println("   -> [Skip] Bo qua gui mail cho ${customer.name} vi chua dang ky email.")
         return
     }
-    println("   -> [Sent] Đã gửi email chào mừng tới $targetEmail (${customer.name})!")
+    println("   -> [Sent] Da gui email chao mung toi $targetEmail (${customer.name})!")
 }

@@ -11,17 +11,17 @@ import bean.Customer
  * 1. BẢN CHẤT (UNDER THE HOOD / BYTECODE):
  *    - Tony Hoare (cha đẻ của tham chiếu `null` năm 1965) từng gọi `null` là **"Sai lầm tỷ đô" (The Billion Dollar Mistake)**
  *      vì trong Java, mọi biến kiểu đối tượng (`String`, `Customer`) đều ngầm định có thể mang giá trị `null`.
- *      Trình biên dịch Java không hề cảnh báo cho tới khi chương trình chạy và sập vì `NullPointerException` (NPE)!
- *    - Kotlin giải quyết triệt để ngay tại **Compile-time** bằng cách tách hệ thống kiểu làm 2 thế giới:
- *      + **Non-Null Type (`String`, `Customer`)**: Tuyệt đối không thể gán `null`. Dưới tầng Bytecode, Kotlin
+ *      Trình biên dịch Java không cảnh báo cho tới khi chương trình chạy và sập vì `NullPointerException` (NPE)!
+ *    - Kotlin giải quyết ngay tại **Compile-time** bằng cách tách hệ thống kiểu làm 2 nhánh rõ rệt:
+ *      + **Non-Null Type (`String`, `Customer`)**: Không cho phép gán `null` trong mã Kotlin. Dưới tầng Bytecode, Kotlin
  *        gắn annotation `@org.jetbrains.annotations.NotNull` và chèn lệnh kiểm tra nhanh `Intrinsics.checkNotNullParameter(...)`
- *        ở đầu các hàm public để chặn đứng `null` truyền từ code Java sang!
- *      + **Nullable Type (`String?`, `Customer?`)**: Cho phép mang giá trị `null`, nhưng trình biên dịch **CẤM**
+ *        ở đầu các hàm public để sớm phát hiện `null` truyền từ code Java sang!
+ *      + **Nullable Type (`String?`, `Customer?`)**: Cho phép mang giá trị `null`, nhưng trình biên dịch **không cho phép**
  *        gọi trực tiếp dấu chấm `.` (`str.length` sẽ báo lỗi biên dịch ngay!).
  *    - **Toán tử Safe Call (`?.`)**:
  *      + Biểu thức `customer?.address?.city?.uppercase()` được dịch ra Bytecode thành chuỗi kiểm tra `null`
- *        ngắn mạch (short-circuit) an toàn trên Stack mà không tạo thêm bất kỳ đối tượng trung gian nào trên Heap
- *        (như `Optional<T>` của Java 8 vốn phải bọc thêm 1 lớp vỏ Object trên Heap!).
+ *        ngắn mạch (short-circuit) an toàn mà không cần tạo đối tượng bọc trung gian trên Heap
+ *        (như `Optional<T>` của Java 8 vốn phải cấp phát thêm wrapper Object trên Heap).
  *
  * 2. SO SÁNH JAVA VS KOTLIN:
  *    - Java truyền thống:
@@ -46,9 +46,9 @@ import bean.Customer
  *
  * 3. SPRING KOTLIN CORNER:
  *    - Trong `@RestController`, các `@RequestParam(required = false)` hoặc các trường tùy chọn trong Request DTO
- *      luôn được khai báo là `String?`, `Int?`.
+ *      nên được khai báo là `String?`, `Int?`.
  *    - Spring Data JPA hỗ trợ trực tiếp kiểu trả về Nullable trong Repository:
- *      `fun findByEmail(email: String): Customer?` (thay thế hoàn toàn `Optional<Customer>` của Java!).
+ *      `fun findByEmail(email: String): Customer?` (thường được ưu tiên hơn `Optional<Customer>` của Java).
  * =====================================================================
  */
 
@@ -58,51 +58,57 @@ fun main() {
     // =================================================================
     // 1. Non-Null Type vs Nullable Type tại thời điểm biên dịch
     // =================================================================
-    println("1. [Compile-time Null Safety] Phân tách Non-Null (String) và Nullable (String?):")
-    val mandatoryName: String = "Nguyễn Văn An"
-    // mandatoryName = null // ❌ LỖI BIÊN DỊCH: Null can not be a value of a non-null type String
+    println("1. [Compile-time Null Safety] Phan tach Non-Null (String) va Nullable (String?):")
+    val mandatoryName: String = "Nguyen Van An"
+    // mandatoryName = null // LỖI BIÊN DỊCH: Null can not be a value of a non-null type String
 
     val optionalNickname: String? = null
-    println("   -> mandatoryName (Non-Null): \"$mandatoryName\" (độ dài = ${mandatoryName.length})")
+    println("   -> mandatoryName (Non-Null): \"$mandatoryName\" (do dai = ${mandatoryName.length})")
     println("   -> optionalNickname (Nullable): $optionalNickname")
 
-    // optionalNickname.length // ❌ LỖI BIÊN DỊCH: Only safe (?.) or non-null asserted (!!.) calls are allowed
-    println("   -> Gọi an toàn optionalNickname?.length = ${optionalNickname?.length}\n")
+    // optionalNickname.length // LỖI BIÊN DỊCH: Only safe (?.) or non-null asserted (!!.) calls are allowed
+    println("   -> Goi an toan optionalNickname?.length = ${optionalNickname?.length}\n")
 
     // =================================================================
     // 2. Safe Call Chaining (`?.`) qua nhiều tầng đối tượng lồng nhau
     // =================================================================
-    println("2. [Safe Call Chaining] Đi xuyên qua chuỗi đối tượng bằng `?.`:")
+    println("2. [Safe Call Chaining] Di xuyen qua chuoi doi tuong bang `?.`:")
 
     val fullCustomer: Customer? = Customer(
         id = "CUST-01",
-        name = "Trần Thị Bích",
+        name = "Tran Thi Bich",
         email = "bich.tran@example.com",
-        address = Address(street = "123 Nguyễn Huệ", city = "Hồ Chí Minh")
+        address = Address(street = "123 Nguyen Hue", city = "Ho Chi Minh")
     )
 
     val customerWithoutCity: Customer? = Customer(
         id = "CUST-02",
-        name = "Lê Hoàng Nam",
+        name = "Le Hoang Nam",
         email = null,
-        address = Address(street = "45 Lê Lợi", city = null)
+        address = Address(street = "45 Le Loi", city = null)
     )
 
     val nullCustomer: Customer? = null
 
     // Nếu bất kỳ mắt xích nào trong chuỗi là `null`, toàn bộ biểu thức dừng ngay và trả về `null`!
-    println("   -> [CUST-01] Thành phố in hoa: ${fullCustomer?.address?.city?.uppercase()}")
-    println("   -> [CUST-02] Thành phố in hoa (city là null): ${customerWithoutCity?.address?.city?.uppercase()}")
-    println("   -> [NULL]    Thành phố in hoa (customer là null): ${nullCustomer?.address?.city?.uppercase()}\n")
+    val city1 = fullCustomer?.address?.city?.uppercase()
+    val city2 = customerWithoutCity?.address?.city?.uppercase()
+    val city3 = nullCustomer?.address?.city?.uppercase()
+    check(city1 == "HO CHI MINH" && city2 == null && city3 == null)
+
+    println("   -> [CUST-01] Thanh pho in hoa: $city1")
+    println("   -> [CUST-02] Thanh pho in hoa (city la null): $city2")
+    println("   -> [NULL]    Thanh pho in hoa (customer la null): $city3\n")
 
     // =================================================================
     // 3. Kết hợp Safe Call với các hàm kiểm tra chuỗi (`isNullOrBlank()`)
     // =================================================================
-    println("3. [isNullOrBlank / isNullOrEmpty] Gọi hàm kiểm tra trực tiếp trên biến Nullable:")
+    println("3. [isNullOrBlank / isNullOrEmpty] Goi ham kiem tra truc tiep tren bien Nullable:")
     // Điểm thú vị: `isNullOrBlank()` là Extension Function định nghĩa trên kiểu `CharSequence?` (có dấu ?),
     // nên bạn gọi thẳng bằng dấu chấm `.` mà KHÔNG cần `?.`!
     val blankEmail: String? = "   "
     val missingEmail: String? = customerWithoutCity?.email
+    check(blankEmail.isNullOrBlank() && missingEmail.isNullOrBlank())
 
     println("   -> blankEmail (\"   \").isNullOrBlank()   = ${blankEmail.isNullOrBlank()}")
     println("   -> missingEmail (null).isNullOrBlank() = ${missingEmail.isNullOrBlank()}")

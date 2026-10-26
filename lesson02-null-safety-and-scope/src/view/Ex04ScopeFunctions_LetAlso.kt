@@ -14,7 +14,7 @@ import bean.Customer
  *    - Cả 5 hàm này đều được đánh dấu bằng từ khóa **`inline`** trong thư viện chuẩn của Kotlin!
  *      + Nghĩa là gì? Khi biên dịch ra JVM Bytecode, trình biên dịch **sao chép thẳng nội dung khối lệnh**
  *        vào nơi gọi hàm, **KHÔNG tạo ra đối tượng Lambda ẩn danh trên Heap**!
- *      + Hiệu năng bằng 100% so với viết lệnh `if (x != null)` truyền thống trong Java!
+ *      + Hiệu năng tương đương với viết lệnh `if (x != null)` truyền thống trong Java!
  *
  * 2. SO SÁNH `let` VS `also` (ĐỀU DÙNG THAM SỐ `it` ĐỂ TRỎ TỚI ĐỐI TƯỢNG):
  *    - Điểm chung: Bên trong cặp ngoặc nhọn `{ ... }`, đối tượng gốc được truy cập thông qua tên mặc định là `it`
@@ -32,7 +32,7 @@ import bean.Customer
  *      ```kotlin
  *      fun createCustomer(req: CreateCustomerRequest): CustomerDto {
  *          return customerRepository.save(req.toEntity())
- *              .also { logger.info("Đã lưu khách hàng mới với ID={}", it.id) }
+ *              .also { logger.info("Da luu khach hang moi voi ID={}", it.id) }
  *              .let { it.toDto() }
  *      }
  *      ```
@@ -50,14 +50,14 @@ fun main() {
 
     val activeCustomer = Customer(
         id = "CUST-501",
-        name = "Đặng Quốc Khánh",
+        name = "Dang Quoc Khanh",
         email = "khanh.dang@enterprise.vn",
-        address = Address(street = "88 Láng Hạ", city = "Hà Nội")
+        address = Address(street = "88 Lang Ha", city = "Ha Noi")
     )
 
     val guestCustomer = Customer(
         id = "CUST-502",
-        name = "Khách Vãng Lai",
+        name = "Khach Vang Lai",
         email = null,
         address = null
     )
@@ -65,44 +65,45 @@ fun main() {
     // =================================================================
     // 1. Dùng `?.let { ... }` để thay thế `if (x != null)`
     // =================================================================
-    println("1. [Safe Call + let] Chỉ thực thi khối lệnh khi giá trị khác null:")
+    println("1. [Safe Call + let] Chi thuc thi khoi lenh khi gia tri khac null:")
     // Bên trong `let`, tham số `it` đã được thu hẹp kiểu thành `String` (Non-Null)!
     activeCustomer.email?.let { validEmail ->
-        println("   -> [CUST-501] Đang gửi mã OTP tới email hợp lệ: $validEmail")
+        println("   -> [CUST-501] Dang gui ma OTP toi email hop le: $validEmail")
     }
 
     guestCustomer.email?.let { validEmail ->
         // Khối này sẽ bị bỏ qua hoàn toàn vì guestCustomer.email là null
-        println("   -> [CUST-502] Đang gửi mã OTP tới: $validEmail")
-    } ?: println("   -> [CUST-502] Khách hàng chưa có email, bỏ qua bước gửi OTP.\n")
+        println("   -> [CUST-502] Dang gui ma OTP toi: $validEmail")
+    } ?: println("   -> [CUST-502] Khach hang chua co email, bo qua buoc gui OTP.\n")
 
     // =================================================================
     // 2. Dùng `let` để biến đổi (Transform) một đối tượng đơn lẻ sang kiểu mới
     // =================================================================
-    println("2. [Transform with let] Biến đổi Domain Entity sang DTO trả về kết quả cuối Lambda:")
+    println("2. [Transform with let] Bien doi Domain Entity sang DTO tra ve ket qua cuoi Lambda:")
     val summaryDto: CustomerSummaryDto = activeCustomer.let { cust ->
         // Dòng cuối cùng trong khối `let` chính là giá trị trả về của toàn bộ biểu thức!
         CustomerSummaryDto(
             customerId = cust.id,
             displayTitle = "${cust.name.uppercase()} (${cust.email ?: "No Email"})",
-            cityOrDefault = cust.address?.city ?: "Chưa cập nhật"
+            cityOrDefault = cust.address?.city ?: "Chua cap nhat"
         )
     }
-    println("   -> Kết quả biến đổi DTO: $summaryDto\n")
+    check(summaryDto.customerId == "CUST-501" && summaryDto.cityOrDefault == "Ha Noi")
+    println("   -> Ket qua bien doi DTO: $summaryDto\n")
 
     // =================================================================
     // 3. Dùng `also` để chèn Side-effects (Logging / Auditing / Validation)
     // =================================================================
-    println("3. [Side-effects with also] Ghi Audit Log mà vẫn giữ nguyên đối tượng trả về:")
+    println("3. [Side-effects with also] Ghi Audit Log ma van giu nguyen doi tuong tra ve:")
 
     val registeredDto: CustomerSummaryDto = Customer(
         id = "CUST-777",
-        name = "Vũ Hoàng Yến",
+        name = "Vu Hoang Yen",
         email = "yen.vu@spring.io",
-        address = Address(street = "02 Hải Triều", city = "TP.HCM")
+        address = Address(street = "02 Hai Trieu", city = "TP.HCM")
     )
-        .also { println("   -> [AUDIT STEP 1] Đã khởi tạo đối tượng Customer trên bộ nhớ: id=${it.id}") }
-        .also { require(it.name.isNotBlank()) { "Tên khách hàng không được để trống!" } }
+        .also { println("   -> [AUDIT STEP 1] Da khoi tao doi tuong Customer tren bo nho: id=${it.id}") }
+        .also { require(it.name.isNotBlank()) { "Ten khach hang khong duoc de trong!" } }
         .let { entity ->
             CustomerSummaryDto(
                 customerId = entity.id,
@@ -110,9 +111,10 @@ fun main() {
                 cityOrDefault = entity.address?.city ?: "N/A"
             )
         }
-        .also { println("   -> [AUDIT STEP 2] Đã chuyển đổi thành công sang DTO: $it") }
+        .also { println("   -> [AUDIT STEP 2] Da chuyen doi thanh cong sang DTO: $it") }
 
-    println("   -> Đối tượng cuối cùng nhận được sau chuỗi `.also` và `.let`: ${registeredDto.displayTitle}")
+    check(registeredDto.customerId == "CUST-777" && registeredDto.displayTitle == "Vu Hoang Yen")
+    println("   -> Doi tuong cuoi cung nhan duoc sau chuoi `.also` va `.let`: ${registeredDto.displayTitle}")
 
     println("\n--- ___ * END: Ex04ScopeFunctions_LetAlso * ___ ---")
 }
