@@ -52,20 +52,20 @@ fun main() {
     // ========================================================================
     // 1. `filter` + `map` trực tiếp (Không cần .stream() và .collect())
     // ========================================================================
-    println("\n[1] Tìm tên các sản phẩm còn hàng (stock > 0) và giá >= 500 USD:")
+    println("\n[1] Tim ten cac san pham con hang (stock > 0) va gia >= 500 USD:")
     val premiumInStockNames: List<String> = products
         .filter { it.stock > 0 && it.price >= BigDecimal("500.00") }
         .map { "${it.name} ($${it.price})" }
 
-    println("  Kết quả: $premiumInStockNames")
+    println("  Ket qua: $premiumInStockNames")
 
     // ========================================================================
     // 2. `mapNotNull`: Vừa biến đổi vừa lọc bỏ `null` trong 1 vòng lặp duy nhất
     // ========================================================================
-    println("\n[2] `mapNotNull` (Trích xuất cảnh báo nhập kho cho các mặt hàng sắp hết):")
+    println("\n[2] `mapNotNull` (Trich xuat canh bao nhap kho cho cac mat hang sap het):")
     val restockAlerts: List<String> = products.mapNotNull { product ->
         if (product.stock <= 5) {
-            "CẢNH BÁO: '${product.name}' chỉ còn ${product.stock} chiếc!"
+            "CANH BAO: '${product.name}' chi con ${product.stock} chiec!"
         } else {
             null // Sẽ bị mapNotNull tự động loại bỏ khỏi danh sách kết quả
         }
@@ -75,23 +75,23 @@ fun main() {
     // ========================================================================
     // 3. `flatMap` + `distinct`: Làm phẳng danh sách lồng nhau (List of Lists)
     // ========================================================================
-    println("\n[3] `flatMap` + `distinct` (Lấy toàn bộ các tag duy nhất từ mọi sản phẩm):")
+    println("\n[3] `flatMap` + `distinct` (Lay toan bo cac tag duy nhat tu moi san pham):")
     val allUniqueTags: List<String> = products
         .flatMap { it.tags }
         .distinct()
-    println("  Tất cả Tags duy nhất: $allUniqueTags")
+    println("  Tat ca Tags duy nhat: $allUniqueTags")
 
     // ========================================================================
     // 4. `distinctBy` & `filterIsInstance<T>()`
     // ========================================================================
-    println("\n[4] `distinctBy` (Mỗi danh mục chỉ lấy sản phẩm đại diện đầu tiên):")
+    println("\n[4] `distinctBy` (Moi danh muc chi lay san pham dai dien dau tien):")
     val onePerCategory = products.distinctBy { it.category }
     onePerCategory.forEach { println("  - [${it.category}] ${it.name}") }
 
-    println("\n[5] `filterIsInstance<T>()` (Lọc phần tử theo kiểu dữ liệu trong danh sách hỗn hợp):")
+    println("\n[5] `filterIsInstance<T>()` (Loc phan tu theo kieu du lieu trong danh sach hon hop):")
     val mixedEvents: List<Any> = listOf("USER_LOGIN", 404, "ORDER_PAID", 500.25, "USER_LOGOUT")
     val stringEventsOnly: List<String> = mixedEvents.filterIsInstance<String>()
-    println("  Chỉ lấy các sự kiện kiểu String: $stringEventsOnly")
+    println("  Chi lay cac su kien kieu String: $stringEventsOnly")
 
     println("\n--- ___ * FINISH: Ex01FilterMapFlatMap * ___ ---")
 }

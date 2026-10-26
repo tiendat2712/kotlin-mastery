@@ -54,44 +54,44 @@ fun main() {
     // ========================================================================
     // 1. EAGER Evaluation (`Iterable` / `List`): Chạy hết từng bước theo chiều ngang
     // ========================================================================
-    println("\n[1] EAGER (`List`): Duyệt hết toàn bộ danh sách ở mỗi bước + tạo List trung gian:")
+    println("\n[1] EAGER (`List`): Duyet het toan bo danh sach o moi buoc + tao List trung gian:")
     val eagerFirstResult = products
         .filter {
-            println("    [Eager filter] Kiểm tra ${it.id} (${it.name})")
+            println("    [Eager filter] Kiem tra ${it.id} (${it.name})")
             it.price.toDouble() > 500.0
         }
         .map {
-            println("    [Eager map]    Biến đổi ${it.id} -> ${it.name.uppercase()}")
+            println("    [Eager map]    Bien doi ${it.id} -> ${it.name.uppercase()}")
             it.name.uppercase()
         }
         .first()
-    println("  => Kết quả Eager `.first()` : $eagerFirstResult")
+    println("  => Ket qua Eager `.first()` : $eagerFirstResult")
 
     // ========================================================================
     // 2. LAZY Evaluation (`Sequence`): Chạy từng phần tử theo chiều dọc + Short-circuit!
     // ========================================================================
-    println("\n[2] LAZY (`asSequence()`): Đi theo chiều dọc từng phần tử, tìm thấy `.first()` là DỪNG NGAY!")
+    println("\n[2] LAZY (`asSequence()`): Di theo chieu doc tung phan tu, tim thay `.first()` la DUNG NGAY!")
     val lazyFirstResult = products
         .asSequence()
         .filter {
-            println("    [Lazy filter]  Kiểm tra ${it.id} (${it.name})")
+            println("    [Lazy filter]  Kiem tra ${it.id} (${it.name})")
             it.price.toDouble() > 500.0
         }
         .map {
-            println("    [Lazy map]     Biến đổi ${it.id} -> ${it.name.uppercase()}")
+            println("    [Lazy map]     Bien doi ${it.id} -> ${it.name.uppercase()}")
             it.name.uppercase()
         }
         .first()
-    println("  => Kết quả Lazy `.first()`  : $lazyFirstResult (Chỉ chạm đúng phần tử P01 rồi dừng!)")
+    println("  => Ket qua Lazy `.first()`  : $lazyFirstResult (Chi cham dung phan tu P01 roi dung!)")
 
     // ========================================================================
     // 3. Khởi tạo chuỗi vô hạn với `generateSequence`
     // ========================================================================
-    println("\n[3] Tạo chuỗi cấp số nhân Lazy với `generateSequence` + `take(5)`:")
+    println("\n[3] Tao chuoi cap so nhan Lazy voi `generateSequence` + `take(5)`:")
     val retryBackoffDelaysMs = generateSequence(seed = 100L) { previous -> previous * 2 }
         .take(5)
         .toList()
-    println("  Chuỗi thời gian chờ Retry (Exponential Backoff ms): $retryBackoffDelaysMs")
+    println("  Chuoi thoi gian cho Retry (Exponential Backoff ms): $retryBackoffDelaysMs")
 
     println("\n--- ___ * FINISH: Ex04SequenceVsIterable * ___ ---")
 }

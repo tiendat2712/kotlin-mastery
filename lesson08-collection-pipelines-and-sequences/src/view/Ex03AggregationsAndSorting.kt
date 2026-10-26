@@ -49,41 +49,41 @@ fun main() {
     // ========================================================================
     // 1. Quantifiers: `any`, `all`, `none`, `count { ... }`
     // ========================================================================
-    println("\n[1] Kiểm tra điều kiện lượng từ (`any`, `all`, `none`, `count`):")
+    println("\n[1] Kiem tra dieu kien luong tu (`any`, `all`, `none`, `count`):")
     val hasOutOfStock = products.any { it.stock == 0 }
     val allPositivePrice = products.all { it.price > BigDecimal.ZERO }
     val noneNegativeStock = products.none { it.stock < 0 }
     val laptopCount = products.count { it.category == "LAPTOP" }
 
-    println("  Có sản phẩm nào hết hàng không (`any`)?      : $hasOutOfStock")
-    println("  Tất cả sản phẩm đều có giá > 0 (`all`)?      : $allPositivePrice")
-    println("  Không có sản phẩm nào âm kho (`none`)?       : $noneNegativeStock")
-    println("  Số lượng sản phẩm thuộc nhóm LAPTOP (`count`): $laptopCount")
+    println("  Co san pham nao het hang khong (`any`)?      : $hasOutOfStock")
+    println("  Tat ca san pham deu co gia > 0 (`all`)?      : $allPositivePrice")
+    println("  Khong co san pham nao am kho (`none`)?       : $noneNegativeStock")
+    println("  So luong san pham thuoc nhom LAPTOP (`count`): $laptopCount")
 
     // ========================================================================
     // 2. Aggregations: `sumOf` (BigDecimal!), `maxByOrNull`, `minByOrNull`, `fold`
     // ========================================================================
-    println("\n[2] Tính tổng giá trị kho hàng với `sumOf` (hỗ trợ trực tiếp BigDecimal!):")
+    println("\n[2] Tinh tong gia tri kho hang voi `sumOf` (ho tro truc tiep BigDecimal!):")
     val totalInventoryValue: BigDecimal = products.sumOf { product ->
         product.price.multiply(product.stock.toBigDecimal())
     }
     val mostExpensiveProduct: ProductItem? = products.maxByOrNull { it.price }
     val cheapestProduct: ProductItem? = products.minByOrNull { it.price }
 
-    println("  Tổng giá trị tồn kho (BigDecimal) : \$$totalInventoryValue")
-    println("  Sản phẩm đắt nhất (`maxByOrNull`) : ${mostExpensiveProduct?.name} (\$${mostExpensiveProduct?.price})")
-    println("  Sản phẩm rẻ nhất (`minByOrNull`)  : ${cheapestProduct?.name} (\$${cheapestProduct?.price})")
+    println("  Tong gia tri ton kho (BigDecimal) : \$$totalInventoryValue")
+    println("  San pham dat nhat (`maxByOrNull`) : ${mostExpensiveProduct?.name} (\$${mostExpensiveProduct?.price})")
+    println("  San pham re nhat (`minByOrNull`)  : ${cheapestProduct?.name} (\$${cheapestProduct?.price})")
 
     // Sử dụng `fold` để tính tổng tiền sau khi áp dụng phí bảo hiểm kho cố định 50 USD ban đầu
     val totalWithBaseInsurance = products.fold(BigDecimal("50.00")) { acc, item ->
         acc + item.price
     }
-    println("  Tổng đơn giá + \$50 phí gốc (`fold`): \$$totalWithBaseInsurance")
+    println("  Tong don gia + \$50 phi goc (`fold`): \$$totalWithBaseInsurance")
 
     // ========================================================================
     // 3. Multi-criteria Sorting: `sortedWith(compareBy ... thenByDescending ...)`
     // ========================================================================
-    println("\n[3] Sắp xếp đa tiêu chí (Category ASC -> Price DESC -> ID ASC):")
+    println("\n[3] Sap xep da tieu chi (Category ASC -> Price DESC -> ID ASC):")
     val multiSorted = products.sortedWith(
         compareBy<ProductItem> { it.category }
             .thenByDescending { it.price }
