@@ -1,237 +1,235 @@
-# 🎯 Sổ Tay Ôn Tập & Phỏng Vấn: Kotlin Core $\rightarrow$ Spring Boot Kotlin
+# 🎯 Sổ Tay Ôn Tập & Phỏng Vấn: Kotlin Core $\rightarrow$ Spring Boot Kotlin (20 Chủ Đề Trọng Tâm)
 
-> Tài liệu này được biên soạn theo cùng phong cách với chuỗi file `java_core_interview_*.sql` trong `D:\Java_Journey`: đi thẳng vào **Trả lời phỏng vấn**, **Bản chất dưới góc độ JVM Bytecode (Stack vs Heap)**, **Đối chiếu Java vs Kotlin**, và **Bẫy thực tế trong Spring Boot Kotlin**.
-
----
-
-## PHẦN 1: NỀN TẢNG, BIẾN, KIỂU DỮ LIỆU & BỘ NHỚ
-
-### KOTLIN-01 | Phân biệt `val`, `var` và `const val` dưới góc độ bộ nhớ (Stack vs Heap)
-- **Trả lời phỏng vấn:**
-  - `var` (variable): Biến có thể gán lại tham chiếu mới (mutable reference).
-  - `val` (value): Biến chỉ đọc (read-only reference), tương đương từ khóa `final` trong Java — chỉ được gán 1 lần duy nhất. Khi biên dịch ra JVM Bytecode, thuộc tính `val` chỉ sinh hàm **getter**, không sinh hàm **setter**.
-  - `const val`: Hằng số biên dịch (compile-time constant), tương đương `public static final` trong Java. Chỉ áp dụng cho kiểu nguyên thủy (`Int`, `Long`, `Double`, `Boolean`...) và `String`, bắt buộc khai báo ở top-level hoặc bên trong `object` / `companion object`.
-- **Lưu ý / Bẫy phỏng vấn:**
-  - **`val` chỉ khóa tham chiếu ở STACK, không khóa dữ liệu bên trong HEAP!** Nếu bạn khai báo `val list = mutableListOf(1, 2)`, bạn không thể gán `list = mutableListOf(3, 4)`, nhưng vẫn gọi được `list.add(3)` để sửa vùng nhớ trên Heap.
-  - Khác với `const val` (giá trị được trình biên dịch inline thẳng vào nơi gọi lúc compile), `val` thông thường được tính toán lúc **runtime** (thậm chí `val` có thể có custom getter `get() = ...` trả về kết quả khác nhau mỗi lần gọi!).
+> Tài liệu này tổng hợp **20 chủ đề kỹ thuật cốt lõi** (`KOTLIN-01` $\rightarrow$ `KOTLIN-20`), được biên soạn theo phong cách đi thẳng vào **Bản chất ngôn ngữ & JVM Bytecode**, **Đối chiếu Java vs Kotlin**, và **Lưu ý thực tế khi làm Backend / Spring Boot**.
+> *(Phạm vi phiên bản đối chiếu trong repo: Kotlin `2.0.21`, `kotlinx.coroutines` `1.8.1`, JVM Target `17`).*
 
 ---
 
-### KOTLIN-02 | Sự khác nhau giữa `==` và `===` trong Kotlin (Ngược với thói quen Java!)
-- **Trả lời phỏng vấn:**
-  - Trong Kotlin, toán tử `==` dùng để **so sánh giá trị (Structural Equality)**: trình biên dịch tự động dịch `a == b` thành `a?.equals(b) ?: (b === null)` (an toàn tuyệt đối ngay cả khi `a` hoặc `b` là `null`).
-  - Toán tử `===` dùng để **so sánh địa chỉ ô nhớ (Referential Equality)**: kiểm tra xem hai biến trên Stack có đang trỏ tới cùng một đối tượng trên Heap hay không (tương đương toán tử `==` đối với Object trong Java).
-- **Ví dụ đối chiếu:**
+## PHẦN 1: BIẾN, TÍNH BẤT BIẾN (IMMUTABILITY), BỘ NHỚ & KIỂU DỮ LIỆU
+
+### KOTLIN-01 | Phân biệt `val`, `var`, `const val` và giới hạn của mô hình Stack vs Heap
+- **Bản chất:**
+  - `var` (mutable variable/property): Cho phép gán lại giá trị hoặc tham chiếu mới (`=`). Với thuộc tính của class, trình biên dịch sinh cả `getter` và `setter`.
+  - `val` (read-only variable/property): Chỉ được gán 1 lần duy nhất (tương đương `final` trong Java đối với biến cục bộ). Với thuộc tính của class, trình biên dịch chỉ sinh `getter`, không sinh `setter`.
+  - `const val` (compile-time constant): Hằng số biết trước ngay lúc biên dịch (`public static final` + được trình biên dịch inline giá trị vào nơi gọi). Chỉ áp dụng cho kiểu cơ bản (primitive) và `String`, khai báo ở top-level hoặc trong `object` / `companion object`.
+- **Những điểm cần tránh hiểu nhầm:**
+  1. **`val` không đồng nghĩa với hằng số bất biến cố định:** Một thuộc tính `val` có thể định nghĩa custom getter (`val currentTime: Long get() = System.currentTimeMillis()`) và trả về giá trị khác nhau ở mỗi lần đọc.
+  2. **Không phải mọi biến/tham chiếu đều nằm trên Stack:**
+     - **Biến cục bộ (local variable)** trong hàm thường nằm trong khung kích hoạt của hàm (stack frame / thanh ghi CPU — mô hình minh họa của JVM).
+     - **Thuộc tính của class (`val`/`var` property)** có backing field nằm ngay bên trong đối tượng đó trên **Heap**, không nằm trên Stack.
+     - **Biến cục bộ bị Lambda/Closure capture:** Khi một biến cục bộ `var counter = 0` bị đọc/ghi bên trong một lambda, trình biên dịch Kotlin sẽ đóng gói nó vào một đối tượng wrapper (`Ref.IntRef`, `Ref.ObjectRef`) cấp phát trên **Heap** để chia sẻ giữa hàm ngoài và closure.
+
+---
+
+### KOTLIN-02 | Phân biệt `val`, Read-Only Interface (`List<T>`), Shallow Copy và Deep Immutability
+- **Bản chất 4 khái niệm thường bị đánh đồng:**
+  1. **`val`:** Chỉ ngăn việc dùng toán tử `=` để trỏ biến sang đối tượng khác.
+  2. **`List<T>`, `Set<T>`, `Map<K, V>` (Read-only interfaces):** Là **giao diện chỉ đọc** (không khai báo các phương thức sửa đổi như `add`, `remove`, `put`). Nó **không đảm bảo** đối tượng bên dưới không thể thay đổi.
+  3. **Shallow Copy (`toList()`, `toMap()`, `data class.copy()`):** Tạo một vỏ container hoặc đối tượng cấp 1 mới, nhưng các phần tử/thuộc tính bên trong vẫn **chia sẻ chung tham chiếu** với bản gốc.
+  4. **Deep Immutability (Bất biến sâu):** Cả container lẫn toàn bộ cây đối tượng lồng bên trong đều không thể bị thay đổi trạng thái sau khi khởi tạo.
+- **Ví dụ 2 tình huống thực tế (Xem chi tiết tại `lesson07/Ex06ImmutabilityAliasingAndSharedState.kt`):**
+  - **Mutable Aliasing:**
+    ```kotlin
+    val backing: MutableList<String> = mutableListOf("A", "B")
+    val readOnlyView: List<String> = backing // Cùng trỏ tới 1 ArrayList
+    backing.add("C")
+    println(readOnlyView.size) // 3 -> Dù là `val` + `List<String>`, dữ liệu vẫn đổi!
+    ```
+  - **Shallow Copy chứa phần tử khả biến (Mutable Elements):**
+    Nếu bạn có `val copyList = originalList.toList()` hoặc `val copyDto = dto.copy()`, việc gọi `copyList[0].price = 999` (khi phần tử có `var price`) vẫn làm thay đổi phần tử trong `originalList`!
+
+---
+
+### KOTLIN-03 | Shared Mutable State trong `object` hoặc Singleton Service có tự động Thread-Safe không?
+- **Bản chất:**
+  - Việc khởi tạo một `object` trong Kotlin là thread-safe (nhờ cơ chế nạp lớp của JVM).
+  - Tuy nhiên, nếu bên trong `object` (hoặc một Spring `@Service` vốn mặc định là Singleton) có chứa **trạng thái khả biến dùng chung (shared mutable state)** như `var count = 0`, `mutableListOf()`, `mutableMapOf()`, thì các thao tác đọc/ghi đồng thời từ nhiều luồng **KHÔNG tự động thread-safe** (ngay cả khi bạn phơi bày ra ngoài qua kiểu chỉ đọc `Map<K, V>`).
+- **Giải pháp khi cần lưu trạng thái dùng chung đa luồng:**
+  - Dùng cấu trúc dữ liệu đồng thời của JDK (`ConcurrentHashMap`, `AtomicInteger`, `AtomicReference`, `CopyOnWriteArrayList`) hoặc cơ chế khóa (`synchronized` cho luồng OS, `Mutex` cho Coroutines).
+
+---
+
+### KOTLIN-04 | Sự khác nhau giữa `==` và `===` trong Kotlin
+- **Bản chất:**
+  - `==` (**Structural Equality — So sánh giá trị**): Dịch thành `a?.equals(b) ?: (b === null)`. An toàn với `null` và so sánh nội dung thông qua `equals()`.
+  - `===` (**Referential Equality — So sánh tham chiếu**): Kiểm tra xem hai tham chiếu có trỏ tới cùng một địa chỉ đối tượng trên Heap hay không (tương đương `==` đối với kiểu tham chiếu trong Java).
+- **Lưu ý với kiểu số:**
+  - Với `Int`, `Long`, `Boolean` (non-null), Kotlin biên dịch thành kiểu nguyên thủy JVM nên `==` và `===` cho kết quả như nhau (Kotlin 2.0+ khuyến cáo không dùng `===` trên kiểu nguyên thủy/boxed số).
+  - Với `Int?` (nullable), giá trị bị boxing thành `java.lang.Integer`, nên `===` phụ thuộc vào vùng nhớ đệm Integer Cache (`-128..127`) của JVM. Vì vậy, luôn dùng `==` khi so sánh giá trị.
+
+---
+
+### KOTLIN-05 | Kiểu nguyên thủy (Primitives) và Mảng trong Kotlin dưới góc nhìn JVM Bytecode
+- **Bản chất:**
+  - Trên mặt cú pháp Kotlin, mọi kiểu (`Int`, `Double`, `Boolean`) đều hành xử thống nhất như lớp đối tượng.
+  - Khi biên dịch ra JVM Bytecode:
+    - Kiểu **Non-null** (`Int`, `Long`, `Double`, `Boolean`) được tối ưu thành **primitive** (`int`, `long`, `double`, `boolean`) trừ khi dùng làm tham số kiểu Generic (`List<Int>`).
+    - Kiểu **Nullable** (`Int?`, `Double?`) được **boxing** thành `java.lang.Integer`, `java.lang.Double`.
+  - Với mảng: `Array<Int>` biên dịch thành `Integer[]` (mảng các đối tượng boxed), còn `IntArray`, `LongArray`, `DoubleArray` biên dịch thành `int[]`, `long[]`, `double[]` nguyên thủy liên tục trong bộ nhớ.
+
+---
+
+### KOTLIN-06 | Hệ thống kiểu `Any`, `Unit` và `Nothing`
+- **Bản chất:**
+  - **`Any`**: Lớp cha gốc của mọi kiểu non-null trong Kotlin (ánh xạ xuống `java.lang.Object` trên JVM). Kiểu gốc nhận cả `null` là `Any?`.
+  - **`Unit`**: Tương đương `void` của Java nhưng là một kiểu dữ liệu thật (singleton `object`), giúp các hàm không trả về giá trị vẫn tương thích mượt mà với Generics (ví dụ `(T) -> Unit`).
+  - **`Nothing`**: Là **Bottom Type** (kiểu con của mọi kiểu trong Kotlin) và không có bất kỳ instance nào. Biểu thị một biểu thức không bao giờ trả về bình thường (`throw Exception(...)`, `return`).
+- **Ứng dụng thực tế:**
+  Nhờ `throw` và `return` có kiểu `Nothing`, bạn có thể viết guard clause ngắn gọn với toán tử Elvis `?:`:
   ```kotlin
-  val s1 = "Kotlin"
-  val s2 = String(charArrayOf('K', 'o', 't', 'l', 'i', 'n')) // Tạo vùng nhớ mới trên Heap
-
-  println(s1 == s2)  // true  (So sánh nội dung chuỗi bằng equals)
-  println(s1 === s2) // false (Khác địa chỉ ô nhớ trên Heap)
-  ```
-- **Lưu ý với kiểu số nguyên thủy:** Với các kiểu như `Int`, `Double` khi không bị nullable (`Int`), ở mức bytecode Kotlin dùng kiểu nguyên thủy (`int`, `double`) nên `a === b` và `a == b` hoạt động giống nhau; nhưng nếu là `Int?` (bị boxing thành `java.lang.Integer`), `===` sẽ bị ảnh hưởng bởi Integer Cache (`-128..127`) giống hệt Java!
-
----
-
-### KOTLIN-03 | Kotlin có kiểu nguyên thủy (Primitive types) không?
-- **Trả lời phỏng vấn:**
-  - Ở tầng **cú pháp ngôn ngữ (Source code)**, mọi kiểu trong Kotlin (`Int`, `Long`, `Double`, `Boolean`) đều xuất hiện như những Class/Object (bạn có thể gọi `10.toDouble()`, `(-5).coerceAtLeast(0)`).
-  - Tuy nhiên, ở tầng **JVM Bytecode**, trình biên dịch Kotlin tự động tối ưu hóa:
-    - Biến **Non-null** (`Int`, `Long`, `Double`, `Boolean`) được dịch thẳng thành **primitive types** của Java (`int`, `long`, `double`, `boolean`) lưu trên Stack/thanh ghi để đạt hiệu năng tối đa.
-    - Biến **Nullable** (`Int?`, `Double?`) hoặc tham số **Generic** (`List<Int>`, `Array<Int>`) bắt buộc phải được **Autoboxing** thành lớp Wrapper (`java.lang.Integer`, `java.lang.Double`) trên Heap.
-- **Mẹo tối ưu bộ nhớ:** Khi cần mảng số nguyên lớn hiệu năng cao, luôn dùng `IntArray` (`int[]`), `LongArray` (`long[]`) thay vì `Array<Int>` (`Integer[]`).
-
----
-
-### KOTLIN-04 | Hệ thống kiểu `Any`, `Unit` và `Nothing` trong Kotlin là gì?
-- **Trả lời phỏng vấn:**
-  - **`Any`**: Là class cha tối cao của mọi kiểu non-null trong Kotlin (tương đương `java.lang.Object` ở Bytecode). Muốn nhận cả giá trị `null` thì phải khai báo `Any?`.
-  - **`Unit`**: Tương đương `void` trong Java khi hàm không trả về giá trị có nghĩa. Tuy nhiên, `Unit` là một **Singleton `object` thực sự**, nhờ đó các hàm trả về `Unit` có thể tham gia vào Generics (ví dụ `Consumer<T>` của Java chỉ cần viết thành `(T) -> Unit`, không cần tách riêng `Function<T, R>` và `Consumer<T>`!).
-  - **`Nothing`**: Là **Bottom Type** (kiểu con của mọi kiểu dữ liệu trong Kotlin), không có bất kỳ thực thể (instance) nào. Dùng để đánh dấu các biểu thức **không bao giờ trả về bình thường** (như `throw Exception(...)` hoặc vòng lặp vô tận).
-- **Ứng dụng thần thánh của `Nothing` trong Spring Boot:**
-  Nhờ `throw ...` có kiểu là `Nothing` (con của mọi kiểu `T`), bạn có thể kết hợp với toán tử Elvis `?:`:
-  ```kotlin
-  val user: User = userRepository.findByIdOrNull(id)
-      ?: throw EntityNotFoundException("Không tìm thấy user $id")
-  // Trình biên dịch hiểu nhánh phải là Nothing -> biến `user` chắc chắn là User (Non-null)!
+  val order = orderRepository.findByIdOrNull(id)
+      ?: throw OrderNotFoundException("Khong tim thay don $id")
+  // Trình biên dịch suy luận vế phải là Nothing -> `order` tự động mang kiểu non-null `Order`!
   ```
 
 ---
 
-## PHẦN 2: NULL SAFETY & SCOPE FUNCTIONS
+## PHẦN 2: NULL SAFETY, SCOPE FUNCTIONS, HÀM & CLOSURE
 
-### KOTLIN-05 | Tổng hợp các công cụ xử lý Null Safety trong Kotlin
-- **Bảng tóm tắt:**
-  1. **Safe Call (`?.`)**: `user?.address?.city` — Nếu vế trái khác `null` thì gọi tiếp, nếu `null` thì cả biểu thức trả về `null`.
-  2. **Elvis Operator (`?:`)**: `val city = user?.address?.city ?: "Hà Nội"` — Nếu vế trái `null` thì lấy giá trị mặc định (hoặc `return` / `throw`) ở vế phải.
-  3. **Safe Cast (`as?`)**: `val staff = person as? Staff` — Nếu ép kiểu thất bại sẽ trả về `null` thay vì ném `ClassCastException`.
-  4. **Smart Cast (`is` / `!is`)**: Sau khi kiểm tra `if (obj is String)` hoặc `if (x != null)`, trình biên dịch tự động coi `obj` là `String` và `x` là non-null trong phạm vi nhánh đó.
-  5. **Not-null Assertion (`!!`)**: Cưỡng ép chuyển `T?` thành `T`, nếu thực tế là `null` sẽ ném ngay `NullPointerException`. **Quy tắc thực chiến:** Hạn chế tối đa `!!` trong code nghiệp vụ; hãy thay bằng `requireNotNull(x) { "Thông báo lỗi rõ ràng" }` hoặc `?: throw ...`.
+### KOTLIN-07 | Null Safety, Smart Cast (`is`) và khi nào Smart Cast không hoạt động?
+- **Các toán tử cốt lõi:**
+  - Safe call `?.`, Elvis `?:`, Safe cast `as?`, và hàm kiểm tra điều kiện `requireNotNull(value) { "Loi..." }` (ưu tiên dùng thay cho `!!` để có thông báo lỗi ngữ cảnh rõ ràng).
+- **Khi nào Smart Cast (`if (x != null)` hoặc `if (x is String)`) KHÔNG hoạt động?**
+  - Trình biên dịch chỉ cho phép Smart Cast khi nó **đảm bảo được biến không thể bị thay đổi giá trị** giữa thời điểm kiểm tra (`if`) và thời điểm sử dụng:
+    - Biến cục bộ `val`, hoặc biến cục bộ `var` không bị sửa đổi trong nhánh đó và không bị thay đổi bởi lambda: **Smart Cast được**.
+    - Thuộc tính `var` của class, hoặc thuộc tính `val` có custom getter / `open val`: **KHÔNG Smart Cast được** (vì một luồng khác có thể gán lại `var`, hoặc custom getter có thể trả về kết quả khác ở lần gọi sau). Cách xử lý chuẩn là gán vào một biến cục bộ `val temp = obj.mutableProp` hoặc dùng `obj.mutableProp?.let { ... }`.
 
 ---
 
-### KOTLIN-06 | Phân biệt 5 Scope Functions: `let`, `also`, `apply`, `run`, `with`
-- **Trả lời phỏng vấn:** Cả 5 hàm đều thực thi một khối lệnh trên một đối tượng ngữ cảnh (context object), nhưng chỉ khác nhau ở **2 tiêu chí**:
-  1. Cách tham chiếu tới đối tượng bên trong lambda: dùng **`it`** (argument) hay **`this`** (receiver).
-  2. Giá trị trả về của hàm: trả về **kết quả của lambda** hay trả về **chính đối tượng ngữ cảnh (context object)**.
-
-| Hàm | Đối tượng trong Lambda | Giá trị trả về | Khi nào dùng trong thực tế (Spring Boot)? |
+### KOTLIN-08 | Chọn đúng trong 5 Scope Functions (`let`, `also`, `apply`, `run`, `with`)
+| Hàm | Tham chiếu đối tượng | Giá trị trả về | Ngữ cảnh sử dụng phù hợp |
 | :--- | :---: | :---: | :--- |
-| **`let`** | `it` | Kết quả Lambda | Kiểm tra khác null (`email?.let { send(it) }`) hoặc biến đổi 1 đối tượng sang DTO (`entity.let(::toDto)`). |
-| **`also`** | `it` | Chính đối tượng đó | Thực hiện hành động phụ (side-effect) như **ghi log / audit** giữa chuỗi xử lý: `save(order).also { log.info("Saved ${it.id}") }`. |
-| **`apply`** | `this` | Chính đối tượng đó | Khởi tạo và cấu hình các thuộc tính của một đối tượng (Builder-style): `JwtConfig().apply { secret = "..."; ttl = 3600 }`. |
-| **`run`** | `this` | Kết quả Lambda | Vừa truy cập các hàm của đối tượng qua `this`, vừa tính toán ra một kết quả cuối cùng. |
-| **`with`** | `this` | Kết quả Lambda | Gọi nhiều phương thức trên một đối tượng đã biết chắc chắn khác null (`with(stringBuilder) { append(...); toString() }`). |
+| **`let`** | `it` (có thể đặt tên lại) | Kết quả của Lambda | Chạy khối lệnh khi khác null (`value?.let { ... }`) hoặc ánh xạ đối tượng sang kết quả mới. |
+| **`also`** | `it` (có thể đặt tên lại) | Chính đối tượng gốc | Thực hiện tác vụ phụ (ghi log, kiểm tra, debug) mà không làm đứt chuỗi gọi hàm. |
+| **`apply`** | `this` (có thể lược bỏ) | Chính đối tượng gốc | Cấu hình các thuộc tính của đối tượng vừa khởi tạo (`Config().apply { ... }`). |
+| **`run`** | `this` (có thể lược bỏ) | Kết quả của Lambda | Vừa thao tác trên `this` vừa tính toán trả về một kết quả mới. |
+| **`with`** | `this` (có thể lược bỏ) | Kết quả của Lambda | Gom nhóm nhiều lời gọi phương thức trên một đối tượng non-null: `with(builder) { ... }`. |
+- **Lưu ý:** Tránh lồng nhiều `let`/`apply`/`run` chồng chéo làm rối con trỏ `this` và `it`.
 
 ---
 
-### KOTLIN-07 | Phân biệt `lateinit var` và `by lazy`
-- **Trả lời phỏng vấn:**
-  | Tiêu chí | `lateinit var` | `by lazy { ... }` |
-  | :--- | :--- | :--- |
-  | Từ khóa đi kèm | Chỉ dùng với **`var`** (mutable) | Chỉ dùng với **`val`** (read-only) |
-  | Kiểu dữ liệu | Không dùng được với kiểu nguyên thủy (`Int`, `Boolean`, `Double`...) và không dùng với kiểu Nullable (`T?`) | Dùng được với **mọi kiểu** (kể cả nguyên thủy và Nullable) |
-  | Cách khởi tạo | Gán từ bên ngoài sau khi tạo object (nếu đọc trước khi gán sẽ nổ `UninitializedPropertyAccessException`) | Tự động tính toán **đúng 1 lần** vào lần đầu tiên thuộc tính được truy cập |
-  | Thread-safety | Không tự đồng bộ | Mặc định **Thread-safe** (`LazyThreadSafetyMode.SYNCHRONIZED`) |
-  | Ứng dụng | Tiêm dependency bằng `@Autowired` trong class Test, hoặc khởi tạo trong `@BeforeEach` | Khởi tạo tài nguyên nặng (ObjectMapper, Regex phức tạp, kết nối) chỉ khi thực sự cần dùng |
+### KOTLIN-09 | Phân biệt `lateinit var` và `by lazy`
+- **`lateinit var`**: Dùng cho thuộc tính `var` non-null (không áp dụng cho kiểu nguyên thủy như `Int`, `Boolean`), cho phép trì hoãn việc gán giá trị sau khi constructor chạy xong (thường gặp trong test setup `@BeforeEach` hoặc framework injection). Nếu đọc trước khi gán sẽ ném `UninitializedPropertyAccessException`.
+- **`by lazy { ... }`**: Dùng cho thuộc tính `val`, tính toán giá trị vào lần đầu tiên được đọc và lưu kết quả dùng lại. Mặc định `lazy` đồng bộ hóa (`LazyThreadSafetyMode.SYNCHRONIZED`) để an toàn khi nhiều luồng cùng truy cập lần đầu.
 
 ---
 
-## PHẦN 3: HÀM, EXTENSION FUNCTIONS & OOP CHO SPRING BOOT
-
-### KOTLIN-08 | Bản chất của Extension Function là gì? Nó có phá vỡ tính đóng gói (Encapsulation) không?
-- **Trả lời phỏng vấn:**
-  - Extension Function (`fun String.normalizeCode(): String`) cho phép ta gọi thêm phương thức mới trên một class có sẵn như thể hàm đó nằm trong class đó, nhưng **thực chất không hề chỉnh sửa bytecode của class gốc**.
-  - Khi biên dịch ra JVM Bytecode, trình biên dịch biến Extension Function thành một **hàm `public static`** nhận đối tượng gốc làm tham số đầu tiên:
-    ```java
-    // Kotlin: fun String.normalizeCode(): String = this.trim().uppercase()
-    // Bytecode tương đương Java:
-    public static String normalizeCode(String $this$normalizeCode) {
-        return $this$normalizeCode.trim().toUpperCase();
-    }
-    ```
-  - **Không phá vỡ tính đóng gói:** Bên trong Extension Function, bạn **không thể** truy cập các thuộc tính `private` hay `protected` của class gốc, chỉ truy cập được những gì `public` / `internal`.
-  - **Bẫy phỏng vấn:** Vì bản chất là hàm `static`, Extension Function được phân giải tĩnh lúc **compile-time** (theo kiểu khai báo của biến), chứ **không có tính đa hình (override) lúc runtime** như method thông thường!
+### KOTLIN-10 | Bản chất của Extension Functions: Phân giải tĩnh (Static Dispatch)
+- **Bản chất:**
+  - Extension Function (`fun String.toSlug(): String`) biên dịch thành một phương thức `public static` nhận đối tượng mở rộng (receiver) làm tham số đầu tiên.
+  - Nó không sửa đổi lớp gốc và không truy cập được thành viên `private`/`protected` của lớp gốc.
+- **Lưu ý phỏng vấn:**
+  - Vì là phương thức tĩnh ở mức Bytecode, Extension Function được quyết định lúc **compile-time dựa trên kiểu khai báo của biến**, không có tính đa hình động (runtime polymorphism) như phương thức `open`/`override` bên trong class.
 
 ---
 
-### KOTLIN-09 | Tại sao các class trong Kotlin mặc định là `final`? Ảnh hưởng gì tới Spring Boot?
-- **Trả lời phỏng vấn:**
-  - Tuân theo triết lý trong cuốn *Effective Java* (Item 19: *"Design and document for inheritance or else prohibit it"*), mọi `class` và `fun` trong Kotlin mặc định là **`final`** để tránh việc kế thừa ngoài ý muốn làm hỏng tính đúng đắn của lớp cha. Muốn cho phép kế thừa bắt buộc phải thêm từ khóa `open`.
-  - **Ảnh hưởng tới Spring Boot:**
-    - Các annotation như `@Configuration`, `@Service`, `@Transactional`, `@Cacheable`, `@Async` trong Spring hoạt động bằng cách dùng **CGLIB tạo một class Proxy kế thừa (subclass)** từ class của bạn lúc runtime để chèn logic AOP (mở/đóng transaction, quản lý bean singleton).
-    - Nếu class hoặc hàm là `final`, CGLIB không thể kế thừa/override được và sẽ báo lỗi lúc khởi động!
-  - **Giải pháp chuẩn trong Spring Boot Kotlin:**
-    - Khai báo plugin **`kotlin("plugin.spring")`** (bản chất là plugin `all-open`) trong `build.gradle.kts`. Plugin này sẽ tự động thêm từ khóa `open` ở tầng bytecode cho mọi class gắn `@Component`, `@Service`, `@Repository`, `@Configuration`, `@Transactional` mà code Kotlin của bạn vẫn sạch đẹp, không cần gõ chữ `open` thủ công!
+### KOTLIN-11 | `inline`, `noinline`, `crossinline`, Non-local Return & Closure Capture
+- **`inline` function và đánh đổi (trade-offs):**
+  - Khi đánh dấu hàm bậc cao (nhận lambda) là `inline`, trình biên dịch chép thân hàm và thân lambda trực tiếp vào nơi gọi, giúp tránh cấp phát đối tượng `FunctionN` và cho phép dùng `reified` cũng như non-local `return`.
+  - **Giới hạn & đánh đổi:** Không nên dùng `inline` cho hàm thường không nhận lambda (chỉ làm phình kích thước bytecode vô ích); không nên inline hàm có thân quá dài; hàm đệ quy không thể inline.
+- **`noinline` và `crossinline`:**
+  - `noinline`: Giữ lại một tham số lambda dưới dạng đối tượng `FunctionN` bình thường để có thể lưu vào biến hoặc truyền tiếp cho hàm không inline.
+  - `crossinline`: Dùng khi lambda được inline nhưng lại được gọi bên trong một ngữ cảnh thực thi khác (như `Runnable` hoặc object ẩn danh), nơi không cho phép nhảy `return` thoát khỏi hàm ngoài.
+- **Local Return vs Non-local Return (Lambda vs Anonymous Function):**
+  - Quy tắc cốt lõi của Kotlin: lệnh `return` không nhãn luôn thoát khỏi hàm gần nhất được khai báo bằng từ khóa **`fun`**.
+  - Do đó, `return` trần bên trong một `inline` lambda (như `list.forEach { if (...) return }`) là **non-local return** (thoát luôn khỏi hàm `fun` bao ngoài!).
+  - Muốn chỉ thoát khỏi bước lặp hiện tại của lambda, dùng **local return có nhãn** (`return@forEach`) hoặc dùng **Anonymous Function** (`list.forEach(fun(item) { if (...) return })`).
 
 ---
 
-### KOTLIN-10 | Tại sao dùng `data class` cho DTO thì tuyệt vời nhưng KHÔNG NÊN dùng cho JPA `@Entity`?
-- **Trả lời phỏng vấn:**
-  - **`data class`** tự động sinh `equals()`, `hashCode()`, `toString()`, `copy()`, và `componentN()` dựa trên tất cả các thuộc tính trong Primary Constructor. Điều này cực kỳ hoàn hảo cho **DTO (Request / Response)** hoặc **Value Object** bất biến.
-  - Tuy nhiên, nếu gắn `@Entity` của JPA/Hibernate lên `data class`, bạn sẽ dính **3 quả bom hẹn giờ**:
-    1. **Xung đột với Hibernate Proxy:** `data class` bắt buộc là `final` (không thể đánh dấu `open data class`), làm hỏng cơ chế tạo Lazy Loading Proxy của Hibernate.
-    2. **Nổ `LazyInitializationException` hoặc vòng lặp vô tận (StackOverflowError):** Hàm `toString()`, `equals()`, `hashCode()` tự sinh sẽ duyệt qua tất cả các trường trong primary constructor. Nếu trong đó có quan hệ `@OneToMany` / `@ManyToOne(fetch = FetchType.LAZY)`, chỉ cần gọi `println(entity)` hoặc đưa vào `Set` là Hibernate sẽ kích hoạt truy vấn ngầm ngoài Session gây lỗi!
-    3. **Hỏng `HashSet` / `HashMap` khi lưu DB:** Khi mới khởi tạo Entity (`id = null`), `hashCode()` tính theo `id = null`. Sau khi `repository.save(entity)`, DB gán `id = 100`, làm `hashCode()` thay đổi $\rightarrow$ không thể tìm thấy chính Entity đó trong `Set` nữa!
-  - **Best Practice trong Spring Data JPA + Kotlin:**
-    - Dùng `class` thường (kết hợp plugin `kotlin("plugin.jpa")` để tự sinh no-arg constructor cho Hibernate).
-    - Tự cài đặt `equals()` và `hashCode()` chỉ dựa trên khóa tự nhiên (business key) hoặc kiểm tra `id != null && id == other.id`.
+## PHẦN 3: OOP, SPECIAL CLASSES & BẤT ĐỒNG BỘ TRONG BACKEND
+
+### KOTLIN-12 | Nested Class vs Inner Class (`this@Outer`) — Sự đảo ngược giữa Java và Kotlin
+- **Bản chất:**
+  - **Trong Java:** Một `class Inner` khai báo bên trong `class Outer` mặc định là **non-static** (luôn ngầm giữ một tham chiếu ẩn `this$0` trỏ tới đối tượng `Outer`). Nếu quên từ khóa `static`, việc giữ đối tượng con lâu dài rất dễ gây rò rỉ bộ nhớ (memory leak) đối tượng `Outer`.
+  - **Trong Kotlin (đảo ngược lại để an toàn mặc định):**
+    - `class Outer { class Nested }`: Mặc định tương đương **`static class`** của Java! Nó **không** giữ tham chiếu tới `Outer` và không truy cập được thuộc tính instance của `Outer` (rất phù hợp để gom nhóm các class DTO Request/Response hoặc Builder).
+    - `class Outer { inner class Inner }`: Chỉ khi thêm từ khóa `inner`, lớp con mới giữ tham chiếu tới `Outer` và dùng được `this@Outer`.
 
 ---
 
-### KOTLIN-11 | Khi nào dùng `sealed class` / `sealed interface` thay cho `enum class` hoặc Exception?
-- **Trả lời phỏng vấn:**
-  - **`enum class`**: Mỗi hằng số trong Enum chỉ có **1 thực thể duy nhất (singleton)** và tất cả các hằng số phải có **cùng cấu trúc thuộc tính**.
-  - **`sealed class` / `sealed interface`**: Cho phép định nghĩa một tập hợp các lớp con **đóng (biết trước lúc compile)**, nhưng **mỗi lớp con có thể mang cấu trúc dữ liệu hoàn toàn khác nhau** và tạo được nhiều instance khác nhau!
-  - **Ví dụ trong Spring Service:**
-    ```kotlin
-    sealed interface CheckoutResult {
-        data class Success(val orderId: String, val payableAmount: BigDecimal) : CheckoutResult
-        data class OutOfStock(val productId: String, val requested: Int, val available: Int) : CheckoutResult
-        data object CustomerLocked : CheckoutResult
-    }
-    ```
-    Khi Controller xử lý kết quả bằng `when (result)`, trình biên dịch kiểm tra **vét cạn (exhaustive)** cả 3 trường hợp mà không cần nhánh `else`; nếu sau này thêm trạng thái thứ 4 vào `CheckoutResult`, trình biên dịch sẽ báo lỗi ngay tại mọi chỗ `when` chưa xử lý!
+### KOTLIN-13 | `final` mặc định, `kotlin("plugin.spring")`, `kotlin("plugin.jpa")` và cơ chế Proxy
+- **Bản chất trên Kotlin `2.0.21`:**
+  - Mọi `class` và phương thức trong Kotlin mặc định là `final`.
+  - Trong Spring, các tính năng AOP (`@Transactional`, `@Async`, `@Cacheable`) và `@Configuration` hoạt động qua **Proxy**:
+    - Spring hỗ trợ cả **JDK Dynamic Proxy** (dựa trên interface) và **CGLIB Proxy** (tạo lớp con kế thừa lớp gốc; đây là chế độ mặc định trong Spring Boot với `proxyTargetClass = true`).
+    - Khi tạo CGLIB subclass proxy, lớp và phương thức đích không được là `final`.
+- **Phân biệt rõ 2 compiler plugins:**
+  1. **`kotlin("plugin.spring")` (cấu hình sẵn của `all-open`):** Tự động mở `open` ở mức bytecode cho các class/method có gắn `@Component`, `@Service`, `@Repository`, `@Controller`, `@Configuration`, `@Transactional`, `@Async`, `@Cacheable`...
+  2. **`kotlin("plugin.jpa")` (cấu hình sẵn của `no-arg`):** Tự động sinh một **constructor không tham số (no-arg constructor)** ở mức bytecode cho các class gắn `@Entity`, `@Embeddable`, `@MappedSuperclass` để JPA/Hibernate khởi tạo qua Reflection.
+     *(Lưu ý: `plugin.jpa` chỉ sinh no-arg constructor, không tự mở `open` cho `@Entity`; nếu muốn Hibernate tạo lazy-loading proxy cho `@Entity` mà không tự gõ `open`, cần cấu hình thêm `allOpen { annotation("jakarta.persistence.Entity") }` trong `build.gradle.kts` hoặc khai báo `open` trên entity).*
 
 ---
 
-## PHẦN 4: COLLECTIONS, SEQUENCES, GENERICS & ANNOTATIONS
-
-### KOTLIN-12 | Phân biệt `Iterable` (Collection pipeline) và `Sequence` (`asSequence()`)
-- **Trả lời phỏng vấn:**
-  - **Các hàm trên `Iterable` (`list.filter {...}.map {...}`)**: Hoạt động theo cơ chế **Eager (Thực thi tức thì - theo chiều ngang)**. Mỗi bước `filter`, `map` sẽ chạy hết toàn bộ danh sách và **tạo ra một `ArrayList` trung gian mới** trên Heap trước khi chuyển sang bước tiếp theo.
-  - **`Sequence` (`list.asSequence().filter {...}.map {...}.toList()`)**: Hoạt động theo cơ chế **Lazy (Thực thi trễ - theo chiều dọc)** giống hệt `Stream<T>` trong Java 8+. Không có bất kỳ bước nào chạy cho tới khi gặp hàm kết thúc (terminal operation như `toList()`, `firstOrNull()`, `sumOf()`), và từng phần tử sẽ đi xuyên suốt qua chuỗi `filter -> map` mà **không tạo danh sách trung gian**.
-- **Khi nào nên dùng cái nào?**
-  - Với danh sách nhỏ và vừa (vài chục đến vài ngàn phần tử) và ít bước biến đổi (1–2 bước): Dùng thẳng `list.filter().map()` vì code ngắn gọn và chi phí tạo `ArrayList` nhỏ rất rẻ, đôi khi nhanh hơn overhead khởi tạo Sequence.
-  - Với danh sách lớn (hàng chục ngàn phần tử trở lên), chuỗi pipeline dài nhiều bước, hoặc có hàm ngắt sớm (**short-circuit** như `.firstOrNull()`, `.take(5)`): Dùng **`.asSequence()`** để tiết kiệm bộ nhớ và dừng ngay khi tìm đủ kết quả.
-
----
-
-### KOTLIN-13 | Tại sao trong Spring Boot Kotlin phải viết `@field:NotBlank` thay vì `@NotBlank`?
-- **Trả lời phỏng vấn:**
-  - Trong Kotlin, khi bạn viết một thuộc tính trong Primary Constructor:
-    ```kotlin
-    data class CreateCustomerRequest(
-        @NotBlank val fullName: String
-    )
-    ```
-    Một khai báo `val fullName: String` đó đại diện cho **3 thành phần** ở mức JVM Bytecode:
-    1. Tham số của hàm khởi tạo (`constructor parameter` - `@param:`)
-    2. Biến thuộc tính ẩn bên trong class (`backing field` - `@field:`)
-    3. Hàm lấy giá trị (`getter method` - `@get:`)
-  - Theo quy tắc mặc định của Kotlin, nếu một Annotation cho phép gắn lên cả `PARAMETER` và `FIELD` (như `@NotBlank`, `@Email`, `@Min`, `@Valid` của `jakarta.validation`), Kotlin sẽ ưu tiên gắn nó vào **Tham số Constructor (`@param:`)**!
-  - Trong khi đó, Hibernate Validator của Spring Boot mặc định quét kiểm tra trên **Field (`@field:`)** hoặc **Getter (`@get:`)** của object. Nếu thiếu `@field:`, validation sẽ bị bỏ qua âm thầm!
-  - **Cách viết chuẩn bắt buộc:**
-    ```kotlin
-    data class CreateCustomerRequest(
-        @field:NotBlank(message = "Tên không được để trống")
-        val fullName: String,
-
-        @field:Valid
-        val address: AddressRequest
-    )
-    ```
+### KOTLIN-14 | `data class` cho DTO và những lưu ý quan trọng với JPA `@Entity`
+- **Với DTO (Request / Response):**
+  - `data class` với các thuộc tính `val` là lựa chọn rất phổ biến nhờ tự sinh `equals`, `hashCode`, `toString`, `copy`, `componentN`. Tuy nhiên, cần nhớ đây chỉ là **shallow immutability** (nếu bên trong chứa `MutableList` hay mảng `Array`, dữ liệu bên trong vẫn sửa được).
+- **Vì sao không nên dùng `data class` cho JPA `@Entity`?**
+  1. `data class` không thể là `open`, gây cản trở cơ chế tạo proxy lazy-loading của Hibernate.
+  2. `toString()`, `equals()`, `hashCode()` tự sinh của `data class` truy cập toàn bộ thuộc tính trong primary constructor — nếu có quan hệ `@OneToMany` / `@ManyToOne(fetch = LAZY)`, nó dễ kích hoạt truy vấn ngoài ý muốn (`LazyInitializationException`) hoặc đệ quy hai chiều (`StackOverflowError`).
+- **Cảnh báo khi viết `equals`/`hashCode` cho JPA `@Entity` có ID tự sinh (`@GeneratedValue`):**
+  - Không áp dụng máy móc `override fun hashCode() = id.hashCode()` khi `var id: Long? = null` được DB cấp phát sau khi `persist()`! Khi `id` đổi từ `null` sang số cụ thể, `hashCode` bị thay đổi lúc đối tượng đang nằm trong `HashSet`/`HashMap`, làm hỏng cấu trúc bảng băm.
+  - **Cách tiếp cận an toàn:** Dùng khóa tự nhiên bất biến (`@NaturalId val businessCode: String` hoặc `UUID` gán ngay từ đầu), hoặc kết hợp `equals` kiểm tra `id != null && id == other.id` với `hashCode() = javaClass.hashCode()` (đánh đổi: các entity cùng lớp dùng chung 1 bucket băm, nên tránh nhét hàng chục nghìn bản ghi vào cùng một `HashSet`).
 
 ---
 
-### KOTLIN-14 |Từ khóa `reified` đi kèm `inline fun` giải quyết bài toán gì?
-- **Trả lời phỏng vấn:**
-  - Trên JVM, Generics bị **Type Erasure** (xóa kiểu lúc runtime): bên trong hàm `fun <T> parse(json: String): T`, JVM chỉ biết `T` là `Object`, nên bạn không thể viết `T::class.java` hay `if (item is T)`. Vì vậy ở Java, bạn luôn phải truyền thêm tham số `Class<T> clazz` (ví dụ `objectMapper.readValue(json, User.class)`).
-  - Trong Kotlin, khi đánh dấu hàm là **`inline fun <reified T>`**, trình biên dịch sẽ **chép thẳng (inline) mã lệnh của hàm đó vào nơi gọi** và thay thế `T` bằng kiểu thực tế tại chỗ gọi (ví dụ `User`). Nhờ đó, thông tin kiểu `T` được giữ nguyên lúc runtime!
-  - Đó là lý do các thư viện như Jackson Kotlin hay Spring `RestClient` / `MockMvc` cho phép gọi cực kỳ thanh lịch:
-    ```kotlin
-    val user = objectMapper.readValue<UserDto>(jsonString)
-    ```
+### KOTLIN-15 | Khi nào dùng `enum class`, `sealed interface/class` và `@JvmInline value class`?
+- **`enum class`**: Tập hợp hữu hạn các hằng số cố định, mỗi hằng số chỉ có duy nhất 1 instance.
+- **`sealed class` / `sealed interface`**: Tập hợp đóng các kiểu con biết trước lúc biên dịch, trong đó mỗi kiểu con có thể là `data class` (mang dữ liệu riêng cho từng nhánh như `Success(val data: T)`, `ValidationError(val errors: List<String>)`) hoặc `data object`. Giúp biểu thức `when` kiểm tra vét cạn mà không cần `else`.
+- **`@JvmInline value class`**: Bọc một giá trị đơn (như `CustomerId(val value: String)`) để trình biên dịch kiểm tra an toàn kiểu (không truyền nhầm `ProductId` vào chỗ `CustomerId`), trong khi lúc chạy thường được mở hộp (unbox) về kiểu cơ bản `String` để giảm cấp phát đối tượng trên Heap.
 
 ---
 
-## PHẦN 5: COROUTINES & SPRING BOOT KOTLIN CHECKLIST
+## PHẦN 4: COLLECTIONS, GENERICS, ANNOTATIONS & COROUTINES
 
-### KOTLIN-15 | Phân biệt `launch` và `async` trong Kotlin Coroutines
-- **Trả lời phỏng vấn:**
-  - **`launch`**: Dùng cho tác vụ **"Fire and Forget"** (chạy ngầm và không cần trả về giá trị kết quả). Trả về đối tượng `Job` để quản lý vòng đời (`job.join()`, `job.cancel()`). Nếu có ngoại lệ không bắt bên trong `launch`, nó sẽ truyền thẳng lên làm hủy CoroutineScope cha.
-  - **`async`**: Dùng khi cần **tính toán song song và lấy kết quả trả về**. Trả về đối tượng `Deferred<T>` (kế thừa từ `Job`), gọi `.await()` (một `suspend fun`) để đợi và nhận kết quả kiểu `T`.
+### KOTLIN-16 | `Iterable` vs `Sequence` và hiểu đúng về `associateBy` với bài toán N+1 Query
+- **`Iterable` (Eager) vs `Sequence` (Lazy):**
+  - Các phép toán trực tiếp trên `Iterable` (`list.filter {...}.map {...}`) thực thi tức thời theo từng bước và tạo danh sách trung gian sau mỗi bước (phù hợp với danh sách nhỏ/vừa hoặc ít bước).
+  - `Sequence` (`list.asSequence().filter {...}.map {...}.toList()`) thực thi lười biếng (lazy) từng phần tử xuyên qua toàn bộ chuỗi và không tạo danh sách trung gian (hữu ích khi chuỗi nhiều bước trên tập dữ liệu lớn hoặc có toán tử dừng sớm như `firstOrNull()`, `take(k)`).
+- **Hiểu đúng về `associateBy` và N+1 Query:**
+  - Bản thân `associateBy { it.id }` chỉ là phép biến đổi **trong bộ nhớ (in-memory)** giúp gom `List` thành `Map` để giảm chi phí tìm kiếm ghép nối trên RAM từ $O(N \times M)$ xuống $O(N + M)$.
+  - Ở tầng Database/ORM, `associateBy` **không tự động chặn N+1 query** nếu bạn không chủ động thay đổi chiến lược truy vấn (ví dụ: gom danh sách ID rồi gọi 1 câu truy vấn lô `WHERE id IN (...)` trước khi dùng `associateBy`, hoặc sử dụng `JOIN FETCH`, `@EntityGraph`, `@BatchSize`, DTO Projection của JPA).
 
 ---
 
-### KOTLIN-16 | Checklist 5 bước khi tạo dự án Spring Boot + Kotlin thực tế
-1. **Plugins trong `build.gradle.kts`**:
-   - `kotlin("jvm")`
-   - `kotlin("plugin.spring")` (tự động mở `open` cho các class Spring `@Service`, `@Configuration`, `@Transactional`)
-   - `kotlin("plugin.jpa")` (nếu dùng Spring Data JPA — tự động sinh constructor rỗng cho `@Entity`)
-2. **Thư viện bắt buộc cho JSON (Jackson)**:
-   - Thêm `com.fasterxml.jackson.module:jackson-module-kotlin` (để Jackson đọc/ghi được `data class` Kotlin không cần constructor rỗng hay `@JsonProperty` thủ công).
-3. **Cấu hình trình biên dịch**:
-   - Đảm bảo có `-Xjsr305=strict` để trình biên dịch Kotlin nhận diện chặt chẽ các annotation `@Nullable` / `@NonNull` từ hệ sinh thái Spring Framework.
-4. **Dependency Injection**:
-   - Luôn dùng **Constructor Injection** với `private val`:
-     ```kotlin
-     @Service
-     class OrderService(
-         private val orderRepository: OrderRepository,
-         private val customerRepository: CustomerRepository
-     )
-     ```
-5. **DTO vs Entity**:
-   - Request / Response DTO: Dùng `data class` + `@field:NotBlank` / `@field:Valid` + viết hàm chuyển đổi bằng **Extension Function** (`fun Order.toResponseDto()`).
-   - JPA `@Entity`: Dùng `class` thường, không dùng `data class`.
+### KOTLIN-17 | Generics Variance (`out`/`in`), Type Erasure theo Upper Bound & Giới hạn của `reified`
+- **Type Erasure theo Upper Bound:**
+  - Trên JVM, tham số kiểu `<T>` không phải lúc nào cũng xóa thành `java.lang.Object`. Nó được xóa về **Upper Bound hiệu lực** của nó: nếu không khai báo ràng buộc (`<T>`), nó xóa về `Object` (`Any?`); nhưng nếu khai báo `<T : Number>` hoặc `<T : Animal>`, ở bytecode chữ ký sẽ dùng `Number` hoặc `Animal`.
+- **Giới hạn của `inline fun <reified T>` với Nested Generic Types:**
+  - `reified` giúp giữ lại kiểu `T` tại vị trí gọi hàm được inline. Tuy nhiên, nếu `T` là một kiểu generic lồng nhau như `List<String>`, thì `value is T` ở runtime chỉ kiểm tra được `value is List<*>`, **không tự động kiểm tra mọi phần tử bên trong có phải là `String` hay không** (vì bản thân đối tượng `ArrayList` trên JVM vẫn bị xóa thông tin kiểu phần tử).
+- **Phân biệt `T::class` với Type Token (`TypeReference<T>` / `typeOf<T>()`):**
+  - Khi các thư viện JSON như Jackson cung cấp hàm `mapper.readValue<List<UserDto>>(json)`, chúng không chỉ dùng `T::class.java` (vì `T::class.java` chỉ ra `List.class`, mất thông tin `UserDto`). Thay vào đó, hàm `inline reified` tạo một lớp ẩn danh kế thừa `TypeReference<T>()` tại điểm gọi để lưu metadata kiểu đầy đủ `List<UserDto>` vào bytecode của lớp ẩn danh đó, rồi Jackson vẫn dùng reflection/metadata ở runtime để đọc và khởi tạo từng `UserDto`. Vì vậy, `reified` giúp code gọn và giữ được metadata kiểu tại call-site, chứ không xóa bỏ hoàn toàn reflection của các framework JSON/ORM.
+
+---
+
+### KOTLIN-18 | Annotation Use-Site Targets (`@field:`, `@get:`, `@param:`) trên Primary Constructor
+- **Bản chất:**
+  - Một khai báo thuộc tính trong primary constructor (`val email: String`) có thể tương ứng với 3 vị trí trong bytecode: tham số hàm tạo (`@param:`), biến trường ẩn (`@field:`), và hàm đọc (`@get:`).
+  - Trong Kotlin `2.0.21` (với cấu hình mặc định hiện tại), khi một annotation cho phép gắn lên nhiều vị trí (như `@NotBlank`, `@Email`, `@Valid` của Jakarta Validation cho phép cả `PARAMETER`, `FIELD`, `METHOD`), Kotlin chọn mục tiêu mặc định theo thứ tự ưu tiên: **`param` > `property` > `field`**.
+  - Do đó, nếu viết `@NotBlank val email: String` mà không chỉ định target, annotation sẽ nằm ở **tham số constructor (`@param:`)**. Với các bộ kiểm tra quét trên **Field (`@field:`)** hoặc **Getter (`@get:`)**, ràng buộc đó sẽ không được kích hoạt trừ khi bạn viết rõ `@field:NotBlank`, `@field:Valid`.
+  - *(Lưu ý phiên bản: Các phiên bản Kotlin tương lai có lộ trình thay đổi cơ chế mặc định qua cờ `-Xannotation-default-target=param-property`, nhưng việc ghi tường minh `@field:` hoặc `@get:` vẫn là thói quen rõ ràng và an toàn nhất).*
+
+---
+
+### KOTLIN-19 | Hiểu đúng về `suspend fun`, Concurrency vs Parallelism và quản lý vòng đời Coroutines
+- **`suspend` không tự động làm code non-blocking hay đổi sang background thread:**
+  - Đánh dấu một hàm là `suspend` chỉ cho phép trình biên dịch biến đổi hàm đó theo cơ chế CPS (Continuation Passing Style) để nó **có khả năng tạm dừng** tại các điểm treo (suspension points).
+  - Nếu bên trong `suspend fun` bạn gọi một hàm chặn luồng như `Thread.sleep(...)` hoặc đọc I/O đồng bộ mà không chuyển dispatcher, nó vẫn chạy ngay trên luồng của người gọi và **chặn cứng luồng đó**.
+- **Concurrency (Đồng thời) vs Parallelism (Song song):**
+  - Chạy 1.000 coroutines cùng lúc trên **1 thread duy nhất** (như `runBlocking`) là **Concurrency**: các coroutine đan xen nhau sử dụng CPU khi coroutine khác đang tạm dừng chờ (`delay`).
+  - **Parallelism** là khi nhiều tác vụ thực sự chạy cùng một thời điểm vật lý trên **nhiều nhân CPU** (như khi chạy trên thread pool đa luồng `Dispatchers.Default`).
+- **Vòng đời của `launch` (`Job`):**
+  - Không nên hiểu `launch` là "bắn ra rồi bỏ mặc". `launch` dùng cho tác vụ không trả về giá trị kết quả (trả về `Job` thay vì `Deferred<T>` của `async`), nhưng nó vẫn **chịu sự quản lý chặt chẽ của `CoroutineScope` cha (Structured Concurrency)**: scope cha sẽ đợi `Job` hoàn tất trước khi đóng, và nếu `Job` ném ngoại lệ không bắt trong `coroutineScope`, nó sẽ hủy cả các coroutine anh em.
+
+---
+
+### KOTLIN-20 | Spring MVC + JPA (Blocking) vs Reactive/Coroutines, Dispatchers & Transactions
+- **Tránh quy tắc máy móc *"Luôn bọc mọi lời gọi JPA trong `withContext(Dispatchers.IO)`"*:**
+  1. **Trong ứng dụng Spring MVC truyền thống (hoặc dùng Virtual Threads trên JDK 21+) + Spring Data JPA (JDBC):**
+     - Mỗi HTTP request vốn đã chạy trên một worker thread riêng; bạn viết hàm bình thường (không cần `suspend`) và gọi thẳng JPA Repository.
+     - Việc bọc lời gọi JDBC vào `withContext(Dispatchers.IO)` **không biến JDBC thành non-blocking**, mà chỉ đẩy việc chờ đợi từ thread hiện tại sang một thread khác trong pool `Dispatchers.IO`.
+  2. **Rủi ro với `@Transactional` truyền thống (Thread-bound Transaction):**
+     - Quản lý giao dịch JDBC truyền thống của Spring (`PlatformTransactionManager`) lưu trữ kết nối và trạng thái giao dịch trong **`ThreadLocal`** của luồng hiện tại.
+     - Nếu đang ở trong một hàm `@Transactional` gắn với luồng A mà bạn dùng `withContext(Dispatchers.IO)` hay `async` nhảy sang luồng B, ngữ cảnh giao dịch trong `ThreadLocal` **không tự động đi theo sang luồng B**, dẫn đến việc truy vấn chạy ngoài transaction hoặc lỗi đóng kết nối!
+  3. **Khi nào dùng Coroutines / `Flow` trong Spring Boot?**
+     - Khi xây dựng hệ thống trên nền **Spring WebFlux**, gọi song song nhiều HTTP API bất đồng bộ bằng `WebClient`, hoặc truy cập DB qua trình điều khiển bất đồng bộ **R2DBC** (sử dụng `ReactorContext` và `TransactionalOperator` thay cho `ThreadLocal`).
