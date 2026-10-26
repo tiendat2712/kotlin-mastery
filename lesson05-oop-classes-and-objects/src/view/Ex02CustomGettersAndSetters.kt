@@ -43,7 +43,7 @@ package view
  * 3. SPRING KOTLIN CORNER:
  * ----------------------------------------------------------------------------
  * - Computed Properties (`val isExpired: Boolean get() = ...`, `val finalAmount: Double get() = ...`)
- *   cực kỳ phổ biến trong các Response DTO của Spring Boot REST API: когда Jackson serialize
+ *   cực kỳ phổ biến trong các Response DTO của Spring Boot REST API: khi Jackson serialize
  *   object sang JSON, Jackson quét tất cả các hàm `getXxx()` và tự động xuất thêm trường
  *   `"expired": false`, `"finalAmount": 90.0` vào JSON trả về cho Frontend mà không cần lưu thừa vào DB!
  */
@@ -70,8 +70,8 @@ private class ProductAccount(
     // 2. Custom Setter với từ khóa `field` (Backing Field)
     var price: Double = 0.0
         set(value) {
-            require(value >= 0.0) { "Giá sản phẩm không được âm (nhận được: $value)" }
-            println("    [Setter Hook] Đang cập nhật backing field `price` từ $field -> $value")
+            require(value >= 0.0) { "Gia san pham khong duoc am (nhan duoc: $value)" }
+            println("    [Setter Hook] Dang cap nhat backing field `price` tu $field -> $value")
             // LƯU Ý CỰC QUAN TRỌNG:
             // Nếu viết `price = value` ở đây -> dịch thành `setPrice(value)` -> StackOverflowError!
             // Phải dùng `field = value` để ghi thẳng vào biến private trên HEAP.
@@ -88,7 +88,7 @@ private class ProductAccount(
     }
 
     fun recordPurchase(amountSpent: Double) {
-        require(amountSpent > 0) { "Số tiền mua hàng phải dương" }
+        require(amountSpent > 0) { "So tien mua hang phai duong" }
         val earned = (amountSpent / 10).toInt()
         loyaltyPoints += earned
     }
@@ -100,25 +100,25 @@ fun main() {
     // ========================================================================
     // 1. Computed Property (Không tốn Backing Field trên HEAP)
     // ========================================================================
-    println("\n[1] Computed Property (`fullName` tự động cập nhật khi `firstName`/`lastName` đổi):")
+    println("\n[1] Computed Property (`fullName` tu dong cap nhat khi `firstName`/`lastName` doi):")
     val account = ProductAccount("  Trinh  ", "  Dat  ", 250.0)
-    println("  Họ tên ban đầu : '${account.fullName}' (đã tự động trim khoảng trắng)")
+    println("  Ho ten ban dau : '${account.fullName}' (da tu dong trim khoang trang)")
 
     account.firstName = "  Nguyen Van "
-    println("  Sau khi đổi họ : '${account.fullName}'")
+    println("  Sau khi doi ho : '${account.fullName}'")
 
     // ========================================================================
     // 2. Custom Setter với Backing Field `field`
     // ========================================================================
-    println("\n[2] Custom Setter với từ khóa `field` và kiểm tra hợp lệ:")
+    println("\n[2] Custom Setter voi tu khoa `field` va kiem tra hop le:")
     account.price = 499.0
-    println("  Giá hiện tại   : ${account.price}")
+    println("  Gia hien tai   : ${account.price}")
 
     try {
-        println("  Thử gán giá âm : account.price = -50.0")
+        println("  Thu gan gia am : account.price = -50.0")
         account.price = -50.0
     } catch (e: IllegalArgumentException) {
-        println("  -> Bắt được ngoại lệ đúng kỳ vọng: ${e.message}")
+        println("  -> Bat duoc ngoai le dung ky vong: ${e.message}")
     }
 
     // ========================================================================
@@ -127,7 +127,7 @@ fun main() {
     println("\n[3] Private Setter (`loyaltyPoints`):")
     account.recordPurchase(155.0)
     account.recordPurchase(45.0)
-    println("  Điểm tích lũy sau 2 giao dịch: ${account.loyaltyPoints} điểm")
+    println("  Diem tich luy sau 2 giao dich: ${account.loyaltyPoints} diem")
 
     println("\n--- ___ * FINISH: Ex02CustomGettersAndSetters * ___ ---")
 }

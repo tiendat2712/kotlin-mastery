@@ -84,13 +84,13 @@ fun main() {
 
     val stripe = StripePaymentProcessor(merchantId = "MERCHANT_VN_01")
 
-    println("\n[1] Gọi hàm public (mặc định) và internal trong cùng module:")
+    println("\n[1] Goi ham public (mac dinh) va internal trong cung module:")
     println("  Merchant ID (public) : ${stripe.merchantId}")
-    stripe.auditInternalLog("Kiểm tra kết nối cổng thanh toán từ hàm main()")
+    stripe.auditInternalLog("Kiem tra ket noi cong thanh toan tu ham main()")
 
-    println("\n[2] Class con truy cập phương thức `protected` của class cha:")
+    println("\n[2] Class con truy cap phuong thuc `protected` cua class cha:")
     val receipt = stripe.chargeCard(amount = 199.99)
-    println("  Kết quả thanh toán   : $receipt")
+    println("  Ket qua thanh toan   : $receipt")
 
     // Thử mở comment dòng dưới sẽ thấy sự khác biệt giữa `protected` của Kotlin và Java:
     // Dù `main()` nằm CÙNG PACKAGE `view` với `PaymentProcessor`, nhưng vì `main()` không phải

@@ -67,9 +67,9 @@ private class BankAccount(
 ) {
     // Bước 1: Khối init thứ nhất - kiểm tra tính hợp lệ của tham số truyền vào
     init {
-        println("    [Step 1 - init #1] Kiểm tra tài khoản '$accountNumber' của '$ownerName'")
-        require(accountNumber.isNotBlank()) { "Số tài khoản không được rỗng!" }
-        require(initialBalance >= 0.0) { "Số dư ban đầu không được âm: $initialBalance" }
+        println("    [Step 1 - init #1] Kiem tra tai khoan '$accountNumber' cua '$ownerName'")
+        require(accountNumber.isNotBlank()) { "So tai khoan khong duoc rong!" }
+        require(initialBalance >= 0.0) { "So du ban dau khong duoc am: $initialBalance" }
     }
 
     // Bước 2: Khởi tạo thuộc tính trong thân class (sử dụng tham số `initialBalance`)
@@ -80,7 +80,7 @@ private class BankAccount(
 
     // Bước 3: Khối init thứ hai - chạy sau khi `balance` và `tier` đã được khởi tạo ở trên
     init {
-        println("    [Step 2 - init #2] Khởi tạo hoàn tất trên HEAP -> balance=$balance, tier=$tier")
+        println("    [Step 2 - init #2] Khoi tao hoan tat tren HEAP -> balance=$balance, tier=$tier")
     }
 
     // Bước 4 (Tùy chọn): Secondary Constructor ủy quyền về Primary Constructor qua `: this(...)`
@@ -90,7 +90,7 @@ private class BankAccount(
         initialBalance = csvRow.split(",")[2].trim().toDouble()
     ) {
         // Thân của Secondary Constructor LUÔN chạy SAU CÙNG (sau tất cả các khối init)
-        println("    [Step 3 - Secondary Constructor] Đã parse thành công từ chuỗi CSV: '$csvRow'")
+        println("    [Step 3 - Secondary Constructor] Da parse thanh cong tu chuoi CSV: '$csvRow'")
     }
 
     override fun toString(): String {
@@ -104,23 +104,23 @@ fun main() {
     // ========================================================================
     // 1. Gọi Primary Constructor trực tiếp
     // ========================================================================
-    println("\n[1] Khởi tạo bằng Primary Constructor:")
+    println("\n[1] Khoi tao bang Primary Constructor:")
     val acc1 = BankAccount("ACC-001", "Le Minh", 15_000.0)
-    println("  Kết quả acc1 -> $acc1")
+    println("  Ket qua acc1 -> $acc1")
 
     // ========================================================================
     // 2. Gọi Primary Constructor với giá trị mặc định (thay thế Constructor Overloading)
     // ========================================================================
-    println("\n[2] Khởi tạo với Default Argument (`initialBalance` mặc định = 0.0):")
+    println("\n[2] Khoi tao voi Default Argument (`initialBalance` mac dinh = 0.0):")
     val acc2 = BankAccount(accountNumber = "ACC-002", ownerName = "Tran Hoa")
-    println("  Kết quả acc2 -> $acc2")
+    println("  Ket qua acc2 -> $acc2")
 
     // ========================================================================
     // 3. Gọi Secondary Constructor và quan sát thứ tự thực thi
     // ========================================================================
-    println("\n[3] Khởi tạo bằng Secondary Constructor (từ dòng CSV):")
+    println("\n[3] Khoi tao bang Secondary Constructor (tu dong CSV):")
     val acc3 = BankAccount("ACC-003, Pham Tuan, 5200.5")
-    println("  Kết quả acc3 -> $acc3")
+    println("  Ket qua acc3 -> $acc3")
 
     println("\n--- ___ * FINISH: Ex03ConstructorsAndInitBlocks * ___ ---")
 }

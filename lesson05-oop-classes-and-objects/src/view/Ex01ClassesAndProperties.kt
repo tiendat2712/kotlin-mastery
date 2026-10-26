@@ -62,8 +62,8 @@ private class Company(balance: Double) {
         private set
 
     fun payment(employee: Employee, salary: Double) {
-        require(salary > 0) { "Lương thanh toán phải > 0" }
-        require(this.balance >= salary) { "Quỹ lương công ty không đủ!" }
+        require(salary > 0) { "Luong thanh toan phai > 0" }
+        require(this.balance >= salary) { "Quy luong cong ty khong du!" }
         this.balance -= salary
         employee.plusIncome(salary)
     }
@@ -74,7 +74,7 @@ private class Employee(val name: String) {
         private set
 
     fun plusIncome(salary: Double) {
-        require(salary > 0) { "Khoản thu nhập cộng thêm phải > 0" }
+        require(salary > 0) { "Khoan thu nhap cong them phai > 0" }
         this.income += salary
     }
 }
@@ -85,7 +85,7 @@ fun main() {
     // ========================================================================
     // 1. Tái hiện Ex01CarDemo.java theo phong cách Kotlin Idiomatic
     // ========================================================================
-    println("\n[1] Khởi tạo đối tượng trên HEAP và Property Access Syntax:")
+    println("\n[1] Khoi tao doi tuong tren HEAP va Property Access Syntax:")
 
     // Gán thuộc tính thuộc phạm vi Class (Companion Object)
     Car.model = "Audi"
@@ -113,11 +113,11 @@ fun main() {
     // ========================================================================
     // 2. Minh họa tính Đóng gói (Encapsulation): Company & Employee
     // ========================================================================
-    println("\n[2] Bài toán Company trả lương cho Employee (Bảo toàn Encapsulation):")
+    println("\n[2] Bai toan Company tra luong cho Employee (Bao toan Encapsulation):")
     val company = Company(balance = 5000.0)
     val emp = Employee(name = "Nguyen Van A")
 
-    println("  Trước khi trả lương -> Quỹ công ty: ${company.balance}, Thu nhập ${emp.name}: ${emp.income}")
+    println("  Truoc khi tra luong -> Quy cong ty: ${company.balance}, Thu nhap ${emp.name}: ${emp.income}")
 
     // Thực hiện hành vi nghiệp vụ (Domain behavior)
     company.payment(emp, 1200.0)
@@ -126,7 +126,7 @@ fun main() {
     // Thử mở comment dòng dưới sẽ thấy trình biên dịch báo lỗi ngay:
     // emp.income = 999999.0 // ERROR: Cannot assign to 'income': the setter is private in 'Employee'
 
-    println("  Sau khi trả lương   -> Quỹ công ty: ${company.balance}, Thu nhập ${emp.name}: ${emp.income}")
+    println("  Sau khi tra luong   -> Quy cong ty: ${company.balance}, Thu nhap ${emp.name}: ${emp.income}")
 
     println("\n--- ___ * FINISH: Ex01ClassesAndProperties * ___ ---")
 }

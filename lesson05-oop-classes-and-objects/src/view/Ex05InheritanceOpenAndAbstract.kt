@@ -27,23 +27,36 @@ package view
  * 2. SPRING KOTLIN CORNER (CỰC KỲ QUAN TRỌNG KHI ĐI LÀM & PHỎNG VẤN):
  * ----------------------------------------------------------------------------
  * Câu hỏi phỏng vấn kinh điển:
- *   "Tại sao các class trong Kotlin mặc định là `final`, mà Spring Boot (`@Configuration`,
- *    `@Service`, `@Transactional`, `@Cacheable`, `@Async`) vẫn tạo được CGLIB Proxy
- *    (vốn hoạt động bằng cách tạo class con kế thừa class gốc tại runtime)?"
+ *   "Tại sao các class và method trong Kotlin mặc định là `final`, và điều đó ảnh hưởng
+ *    thế nào đến cơ chế tạo Proxy của Spring Boot (`@Configuration`, `@Service`,
+ *    `@Transactional`, `@Cacheable`, `@Async`)?"
  *
- * Giải đáp kỹ thuật:
- *   - Trong Spring AOP, khi bạn đánh dấu `@Transactional` lên `OrderService`, Spring không
- *     tiêm trực tiếp `OrderService` mà tạo ra một **Dynamic Subclass (CGLIB Proxy)** kế thừa
- *     `OrderService` và ghi đè các hàm để chèn code `beginTransaction()` / `commit()` / `rollback()`.
- *   - Nếu `OrderService` và các hàm của nó là `final` (mặc định của Kotlin), CGLIB sẽ nổ lỗi
- *     ngay lúc khởi động: `Cannot subclass final class` hoặc `@Transactional` bị phớt lờ!
- *   - Trước đây, lập trình viên phải gõ `open class` và `open fun` khắp nơi rất mỏi tay.
- *   - Ngày nay, mọi dự án Spring Boot + Kotlin đều khai báo plugin trong `build.gradle.kts`:
- *       `kotlin("plugin.spring")` (tên gốc: `org.jetbrains.kotlin.plugin.allopen`)
- *     Plugin này can thiệp vào trình biên dịch `kotlinc`: Bất kỳ class nào có gắn các annotation
- *     `@Component`, `@Service`, `@Repository`, `@Controller`, `@RestController`, `@Configuration`,
- *     `@Transactional`, `@Async`, `@Cacheable`... sẽ được **tự động gỡ bỏ `final` (biến thành `open`)
- *     ngay trong lúc biên dịch ra Bytecode** mà code Kotlin của bạn vẫn giữ nguyên sự sạch sẽ!
+ * Giải đáp kỹ thuật chính xác:
+ *   - Trong Spring AOP, có 2 cơ chế tạo Proxy phổ biến:
+ *     1. **JDK Dynamic Proxy** (dựa trên Interface): Nếu Bean cài đặt một Interface và Spring
+ *        proxy theo interface đó, class cài đặt có là `final` cũng vẫn tạo được proxy.
+ *     2. **CGLIB Proxy** (dựa trên Subclassing): Tạo một class con kế thừa trực tiếp từ class gốc
+ *        tại runtime và ghi đè (override) các phương thức để chèn logic cắt ngang (cross-cutting
+ *        concerns) như `beginTransaction()` / `commit()` / `rollback()`.
+ *   - Trong **Spring Boot**, cấu hình mặc định là sử dụng **CGLIB class-based proxy**
+ *     (`spring.aop.proxy-target-class=true`), bởi vì đa số `@Service`, `@Component` hiện đại
+ *     không viết thêm interface rườm rà. Ngoài ra, `@Configuration(proxyBeanMethods = true)`
+ *     cũng dựa vào CGLIB subclassing để đảm bảo các hàm `@Bean` trả về đúng singleton instance.
+ *   - Do đó, khi dùng CGLIB proxy trực tiếp trên class Kotlin, nếu class hoặc phương thức cần
+ *     can thiệp AOP bị khóa `final` (mặc định của Kotlin), CGLIB sẽ không thể kế thừa class
+ *     (`Cannot subclass final class`) hoặc không thể override hàm đó để gắn advice!
+ *   - Giải pháp chuẩn trong hệ sinh thái Kotlin 2.0.21 + Spring Boot (khai báo trong `build.gradle.kts`):
+ *     + **`kotlin("plugin.spring")`** (preset của compiler plugin `all-open`):
+ *       Tự động mở khóa `open` ở tầng Bytecode cho các class và hàm thuộc các class mang annotation
+ *       của Spring (`@Component`, `@Service`, `@Repository`, `@Controller`, `@RestController`,
+ *       `@Configuration`, `@Transactional`, `@Async`, `@Cacheable`...). Nhờ vậy, code Kotlin
+ *       không cần gõ thủ công `open class` / `open fun` khắp nơi.
+ *     + **`kotlin("plugin.jpa")`** (preset của compiler plugin `no-arg`):
+ *       Tự động sinh **default no-arg constructor** ở tầng Bytecode cho các class đánh dấu
+ *       `@Entity`, `@Embeddable`, `@MappedSuperclass` để Hibernate/JPA có thể khởi tạo đối tượng
+ *       bằng Reflection mà bạn không cần viết một constructor rỗng bằng tay. (Lưu ý: nếu muốn
+ *       Hibernate tạo lazy-loading proxy cho `@Entity` mà không gõ `open class`, ta thường cấu hình
+ *       thêm `allOpen { annotation("jakarta.persistence.Entity") }`).
  */
 
 // 1. Abstract Class: Bản thiết kế khung (Template) cho các loại thông báo
@@ -58,11 +71,11 @@ private abstract class NotificationSender(val channelName: String) {
     }
 
     // Hàm KHÔNG có `open` (mặc định là `final` dưới Bytecode):
-    // Cấm tuyệt đối class con sửa đổi quy trình gửi chuẩn (Template Method Pattern)!
+    // Không cho phép class con sửa đổi quy trình gửi chuẩn (Template Method Pattern)!
     fun executeDelivery(recipient: String, rawContent: String) {
         val formatted = formatMessage(rawContent)
         val ok = send(recipient, formatted)
-        println("    -> Trạng thái gửi tới '$recipient': ${if (ok) "THÀNH CÔNG" else "THẤT BẠI"}")
+        println("    -> Trang thai gui toi '$recipient': ${if (ok) "THANH CONG" else "THAT BAI"}")
     }
 }
 
@@ -72,7 +85,7 @@ private open class EmailNotificationSender(
 ) : NotificationSender(channelName = "EMAIL") {
 
     override fun send(recipient: String, content: String): Boolean {
-        println("    [SMTP $smtpHost] Đang gửi tới <$recipient>: $content")
+        println("    [SMTP $smtpHost] Dang gui toi <$recipient>: $content")
         return recipient.contains("@")
     }
 
@@ -98,16 +111,16 @@ private class MarketingEmailSender(
 fun main() {
     println("--- ___ * START: Ex05InheritanceOpenAndAbstract * ___ ---")
 
-    println("\n[1] Sử dụng EmailNotificationSender (Ghi đè abstract fun & open fun):")
+    println("\n[1] Su dung EmailNotificationSender (Ghi de abstract fun & open fun):")
     val emailSender: NotificationSender = EmailNotificationSender(smtpHost = "smtp.gmail.com")
-    emailSender.executeDelivery("dev@kotlinjourney.com", "Chào mừng bạn đến với Kotlin OOP!")
+    emailSender.executeDelivery("dev@kotlinjourney.com", "Chao mung ban den voi Kotlin OOP!")
 
-    println("\n[2] Sử dụng MarketingEmailSender (Kế thừa nhiều tầng & gọi `super`):")
+    println("\n[2] Su dung MarketingEmailSender (Ke thua nhieu tang & goi `super`):")
     val marketingSender: NotificationSender = MarketingEmailSender(
         smtpHost = "smtp.sendgrid.net",
         unsubscribeUrl = "https://kotlinjourney.com/unsub"
     )
-    marketingSender.executeDelivery("customer@company.vn", "Ưu đãi khóa học Spring Boot Kotlin 50%!")
+    marketingSender.executeDelivery("customer@company.vn", "Uu dai khoa hoc Spring Boot Kotlin 50%!")
 
     println("\n--- ___ * FINISH: Ex05InheritanceOpenAndAbstract * ___ ---")
 }

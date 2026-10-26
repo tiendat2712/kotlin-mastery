@@ -47,18 +47,18 @@ private interface Taxable {
     val taxRate: Double // Abstract property -> yêu cầu class con cung cấp getter
 
     val taxDescription: String
-        get() = "Thuế suất áp dụng: ${(taxRate * 100).toInt()}%"
+        get() = "Thue suat ap dung: ${(taxRate * 100).toInt()}%"
 
     fun calculateTax(subtotal: Double): Double = subtotal * taxRate
 }
 
 // 2. Minh họa Diamond Inheritance Conflict (2 interface có cùng hàm default `auditTransaction`)
 private interface DomesticGateway {
-    fun auditTransaction(txId: String): String = "[NAPAS-VN] Đã đối soát giao dịch nội địa #$txId"
+    fun auditTransaction(txId: String): String = "[NAPAS-VN] Da doi soat giao dich noi dia #$txId"
 }
 
 private interface InternationalGateway {
-    fun auditTransaction(txId: String): String = "[VISA/MASTER] Đã đối soát giao dịch quốc tế #$txId"
+    fun auditTransaction(txId: String): String = "[VISA/MASTER] Da doi soat giao dich quoc te #$txId"
 }
 
 private class UnifiedPaymentService(
@@ -90,14 +90,14 @@ fun main() {
     // ========================================================================
     println("\n[1] Abstract Property & Computed Property trong Interface:")
     val subtotal = 1_000.0
-    println("  Mô tả thuế : ${paymentService.taxDescription}")
-    println("  Tiền thuế  : ${paymentService.calculateTax(subtotal)} trên tổng $subtotal")
+    println("  Mo ta thue : ${paymentService.taxDescription}")
+    println("  Tien thue  : ${paymentService.calculateTax(subtotal)} tren tong $subtotal")
 
     // ========================================================================
     // 2. Giải quyết xung đột Đa kế thừa (`super<Interface>.method()`)
     // ========================================================================
-    println("\n[2] Giải quyết Diamond Problem với `super<Interface>.method()`:")
-    println("  Kết quả    : ${paymentService.auditTransaction("TX-2026-999")}")
+    println("\n[2] Giai quyet Diamond Problem voi `super<Interface>.method()`:")
+    println("  Ket qua    : ${paymentService.auditTransaction("TX-2026-999")}")
 
     // ========================================================================
     // 3. Khởi tạo `fun interface` (SAM Conversion) bằng Lambda ngắn gọn
@@ -106,8 +106,8 @@ fun main() {
     val blackFridayPolicy = DiscountPolicy { amount -> amount * 0.75 } // Giảm 25%
     val vipFlatPolicy = DiscountPolicy { amount -> (amount - 150.0).coerceAtLeast(0.0) }
 
-    println("  Giá gốc $subtotal -> Sau BlackFriday : ${blackFridayPolicy.applyDiscount(subtotal)}")
-    println("  Giá gốc $subtotal -> Sau VIP Voucher : ${vipFlatPolicy.applyDiscount(subtotal)}")
+    println("  Gia goc $subtotal -> Sau BlackFriday : ${blackFridayPolicy.applyDiscount(subtotal)}")
+    println("  Gia goc $subtotal -> Sau VIP Voucher : ${vipFlatPolicy.applyDiscount(subtotal)}")
 
     println("\n--- ___ * FINISH: Ex06InterfacesAndSamConversion * ___ ---")
 }
