@@ -1,6 +1,5 @@
 import bean.BusinessReport
 import bean.OrderOperationResult
-import bean.OrderSummaryView
 import bean.ProductSalesRank
 import common.BusinessException
 import common.SampleData
@@ -12,8 +11,21 @@ import enums.OrderSortMode
 import enums.OrderStatus
 import service.NovaShopService
 import java.math.BigDecimal
-import java.time.LocalDate
+import java.text.Normalizer
 import java.time.LocalDateTime
+
+private val COMBINING_DIACRITICS_REGEX = Regex("\\p{InCombiningDiacriticalMarks}+")
+
+/**
+ * Chuyển chuỗi có dấu tiếng Việt sang ASCII không dấu khi hiển thị ra Console Windows
+ * để tránh lỗi hiển thị ký tự `?` (mojibake), trong khi vẫn giữ nguyên 100% dữ liệu tiếng Việt
+ * có dấu trong `SampleData` và tầng nghiệp vụ `NovaShopService`.
+ */
+private fun String.toAscii(): String =
+    Normalizer.normalize(this, Normalizer.Form.NFD)
+        .replace(COMBINING_DIACRITICS_REGEX, "")
+        .replace('đ', 'd')
+        .replace('Đ', 'D')
 
 /**
  * BÀI TẬP LỚN CUỐI KHÓA (CAPSTONE PROJECT): HỆ THỐNG QUẢN LÝ ĐƠN HÀNG & BÁO CÁO NOVA SHOP
@@ -38,12 +50,12 @@ fun main() {
     // PHẦN 1: KIỂM CHỨNG NỀN DỮ LIỆU, CHUẨN HÓA & KHỬ TRÙNG LẶP
     // =========================================================================
     println("================================================================================")
-    println("1. KIỂM CHỨNG CHUẨN HÓA & KHỬ TRÙNG LẶP KHÁCH HÀNG (12 BẢN GHI GỐC -> 10 KHÁCH)")
+    println("1. KIEM CHUNG CHUAN HOA & KHU TRUNG LAP KHACH HANG (12 BAN GHI GOC -> 10 KHACH)")
     println("================================================================================")
     val customers = service.getAllCustomers()
-    println("  - Tổng số khách hàng sau chuẩn hóa & loại trùng: ${customers.size} (Kỳ vọng: 10)")
+    println("  - Tong so khach hang sau chuan hoa & loai trung: ${customers.size} (Ky vong: 10)")
     customers.forEach { c ->
-        println("    + [${c.id}] ${c.name.padEnd(16)} | Email: ${(c.email ?: "<THIẾU>").padEnd(20)} | TP: ${c.city.padEnd(12)} | Hạng: ${c.currentTier}")
+        println("    + [${c.id}] ${c.name.toAscii().padEnd(16)} | Email: ${(c.email ?: "<THIEU>").padEnd(20)} | TP: ${c.city.toAscii().padEnd(12)} | Hang: ${c.currentTier}")
     }
 
     val c002 = service.findCustomerById("c002")!!
@@ -51,25 +63,25 @@ fun main() {
     val c004 = service.findCustomerById("C004")!!
     val c010 = service.findCustomerById("C010")!!
 
-    check(customers.size == 10) { "Sai số lượng khách hàng: ${customers.size}" }
-    check(c003.email == "chi@example.com" && c003.currentTier == MemberTier.SILVER) { "Sai dữ liệu khử trùng C003: $c003" }
-    check(c002.name == "Trần Bình" && c002.currentTier == MemberTier.SILVER) { "C002 bị bản cũ ghi đè: $c002" }
-    check(c004.email == null && c010.email == null) { "C004 và C010 phải có email == null" }
-    println("  => [PASS] Mốc 1: Chuẩn hóa & khử trùng 10 khách hàng chính xác 100%!\n")
+    check(customers.size == 10) { "Sai so luong khach hang: ${customers.size}" }
+    check(c003.email == "chi@example.com" && c003.currentTier == MemberTier.SILVER) { "Sai du lieu khu trung C003: $c003" }
+    check(c002.name == "Trần Bình" && c002.currentTier == MemberTier.SILVER) { "C002 bi ban cu ghi de: $c002" }
+    check(c004.email == null && c010.email == null) { "C004 va C010 phai co email == null" }
+    println("  => [PASS] Moc 1: Chuan hoa & khu trung 10 khach hang chinh xac 100%!\n")
 
     // =========================================================================
     // PHẦN 2: KIỂM CHỨNG TÍNH TIỀN ĐƠN HÀNG & TRA CỨU ĐA ĐIỀU KIỆN + 3 KIỂU SORT
     // =========================================================================
     println("================================================================================")
-    println("2. KIỂM CHỨNG TÍNH TIỀN ĐƠN LỊCH SỬ & TRA CỨU VẬN HÀNH (3 CHẾ ĐỘ SẮP XẾP)")
+    println("2. KIEM CHUNG TINH TIEN DON LICH SU & TRA CUU VAN HANH (3 CHE DO SAP XEP)")
     println("================================================================================")
     val o001 = service.getOrderSummary("O001")
     val o003 = service.getOrderSummary("O003")
     val o008 = service.getOrderSummary("O008")
 
-    println("  - Đơn O001 (GOLD -10%): Tiền hàng = ${o001.subtotalAmount}, Phải trả = ${o001.payableAmount}")
-    println("  - Đơn O003 (STANDARD 0% lúc mua, dù C003 hiện là SILVER): Phải trả = ${o003.payableAmount}")
-    println("  - Đơn O008 (SILVER -5%, 2 dòng P001 khác giá): Tiền hàng = ${o008.subtotalAmount}, Phải trả = ${o008.payableAmount}")
+    println("  - Don O001 (GOLD -10%): Tien hang = ${o001.subtotalAmount}, Phai tra = ${o001.payableAmount}")
+    println("  - Don O003 (STANDARD 0% luc mua, du C003 hien la SILVER): Phai tra = ${o003.payableAmount}")
+    println("  - Don O008 (SILVER -5%, 2 dong P001 khac gia): Tien hang = ${o008.subtotalAmount}, Phai tra = ${o008.payableAmount}")
 
     check(o001.subtotalAmount == BigDecimal("560000.00") && o001.payableAmount == BigDecimal("504000.00"))
     check(o003.payableAmount == BigDecimal("300000.00"))
@@ -83,12 +95,12 @@ fun main() {
         page = 1,
         size = 25
     )
-    println("\n  - Tra cứu Quý III (Sort: PAYABLE_DESC_THEN_CREATED_ASC) — Tổng: ${sortByPayablePage.totalElements} đơn:")
+    println("\n  - Tra cuu Quy III (Sort: PAYABLE_DESC_THEN_CREATED_ASC) - Tong: ${sortByPayablePage.totalElements} don:")
     val o023Index = sortByPayablePage.items.indexOfFirst { it.orderId == "O023" }
     val o024Index = sortByPayablePage.items.indexOfFirst { it.orderId == "O024" }
-    println("    + Kiểm tra cặp đồng hạng O023 & O024 (cùng 237500.00, cùng ngày tạo 26/09/2026 10:00):")
-    println("      Vị trí O023 = #$o023Index, Vị trí O024 = #$o024Index (O023 đứng trước O024 nhờ tiêu chí mã đơn tăng dần!)")
-    check(o023Index in 0 until o024Index) { "Sai thứ tự đồng hạng giữa O023 và O024!" }
+    println("    + Kiem tra cap dong hang O023 & O024 (cung 237500.00, cung ngay tao 26/09/2026 10:00):")
+    println("      Vi tri O023 = #$o023Index, Vi tri O024 = #$o024Index (O023 dung truoc O024 nho tieu chi ma don tang dan!)")
+    check(o023Index in 0 until o024Index) { "Sai thu tu dong hang giua O023 va O024!" }
 
     // 2b. Tra cứu theo kiểu Sort 3: Email khách hàng tăng dần, Email thiếu (null) luôn đứng cuối
     val sortByEmailPage = service.searchOrders(
@@ -106,19 +118,19 @@ fun main() {
         size = 5
     )
     println("    + Trang 1 (Sort Email ASC, nullsLast): ${sortByEmailPage.items.map { "${it.orderId}(${it.customerEmail})" }}")
-    println("    + Trang cuối (Chứa các đơn của C004 không có email): ${lastPageByEmail.items.map { "${it.orderId}(${it.customerEmail ?: "NULL"})" }}")
-    check(lastPageByEmail.items.all { it.customerEmail == null }) { "Khách thiếu email phải nằm ở cuối danh sách!" }
+    println("    + Trang cuoi (Chua cac don cua C004 khong co email): ${lastPageByEmail.items.map { "${it.orderId}(${it.customerEmail ?: "NULL"})" }}")
+    check(lastPageByEmail.items.all { it.customerEmail == null }) { "Khach thieu email phai nam o cuoi danh sach!" }
 
     // 2c. Minh họa dùng Generic Pagination `List<T>.paginate()` cho kiểu dữ liệu thứ 2 (`List<Product>`)
     val productPage1 = service.getAllProducts().paginate(page = 1, size = 4)
-    println("    + Phân trang Generic trên List<Product> (Trang 1/${productPage1.totalPages}): ${productPage1.items.map { it.id }}")
-    println("  => [PASS] Mốc 2: Tính tiền, tìm kiếm đa điều kiện, 3 chế độ Sort & phân trang Generic chính xác!\n")
+    println("    + Phan trang Generic tren List<Product> (Trang 1/${productPage1.totalPages}): ${productPage1.items.map { it.id }}")
+    println("  => [PASS] Moc 2: Tinh tien, tim kiem da dieu kien, 3 che do Sort & phan trang Generic chinh xac!\n")
 
     // =========================================================================
     // PHẦN 3: BÁO CÁO KINH DOANH QUÝ III/2026 (01/07/2026 - 30/09/2026, TOP K = 3)
     // =========================================================================
     println("================================================================================")
-    println("3. BÁO CÁO KINH DOANH QUÝ III/2026 (K = 3, AS_OF = 01/10/2026 00:00)")
+    println("3. BAO CAO KINH DOANH QUY III/2026 (K = 3, AS_OF = 01/10/2026 00:00)")
     println("================================================================================")
     val q3Report = service.generateBusinessReport(
         fromDate = SampleData.REPORT_FROM,
@@ -138,15 +150,15 @@ fun main() {
     val bookRanks = q3Report.productReport.topProductsByCategory.getValue(Category.BOOK)
     val p001Rank = bookRanks.first { it.productId == "P001" }
     check(p001Rank.totalQuantitySold == 7 && p001Rank.distinctOrderCount == 3) {
-        "P001 trong Quý III bán ở O001 (2), O008 (1+2=3), O015 (2) -> Tổng SL=7, Số đơn phân biệt=3 (không tính O021 ngoài kỳ)!"
+        "P001 trong Quy III ban o O001 (2), O008 (1+2=3), O015 (2) -> Tong SL=7, So don phan biet=3 (khong tinh O021 ngoai ky)!"
     }
-    println("  => [PASS] Mốc 3: Toàn bộ 5 góc nhìn Báo cáo Kinh doanh Quý III/2026 khớp 100%!\n")
+    println("  => [PASS] Moc 3: Toan bo 5 goc nhin Bao cao Kinh doanh Quy III/2026 khop 100%!\n")
 
     // =========================================================================
     // PHẦN 4: TẠO ĐƠN MỚI, CHUYỂN TRẠNG THÁI & BẢO VỆ LỊCH SỬ KHI ĐỔI GIÁ/HẠNG
     // =========================================================================
     println("================================================================================")
-    println("4. TẠO ĐƠN MỚI, CHUYỂN TRẠNG THÁI & CHỨNG MINH BẤT BIẾN LỊCH SỬ")
+    println("4. TAO DON MOI, CHUYEN TRANG THAI & CHUNG MINH BAT BIEN LICH SU")
     println("================================================================================")
     val newOrderCreated = service.createNewOrder(
         orderId = " o025 ",
@@ -154,8 +166,8 @@ fun main() {
         createdAt = LocalDateTime.of(2026, 9, 29, 14, 30),
         requestedItems = listOf("p001" to 2, "P005" to 1) // 2 * 180000 + 1 * 50000 = 410000 -> giảm 5% còn 389500.00
     )
-    println("  - Đã tạo đơn mới [${newOrderCreated.orderId}]: trạng thái=${newOrderCreated.status}, " +
-            "hạng chụp lúc mua=${newOrderCreated.tierAtPurchase}, phải trả=${newOrderCreated.payableAmount}")
+    println("  - Da tao don moi [${newOrderCreated.orderId}]: trang thai=${newOrderCreated.status}, " +
+            "hang chup luc mua=${newOrderCreated.tierAtPurchase}, phai tra=${newOrderCreated.payableAmount}")
     check(newOrderCreated.payableAmount == BigDecimal("389500.00"))
 
     // Chuyển trạng thái hợp lệ: NEW -> CONFIRMED -> DELIVERED
@@ -165,16 +177,16 @@ fun main() {
         targetStatus = OrderStatus.DELIVERED,
         deliveredAt = LocalDateTime.of(2026, 9, 30, 16, 0)
     )
-    println("  - Chuyển trạng thái O025: NEW -> ${confirmedO025.status} -> ${deliveredO025.status} (giao lúc ${deliveredO025.createdAt.formatVn()})")
+    println("  - Chuyen trang thai O025: NEW -> ${confirmedO025.status} -> ${deliveredO025.status} (giao luc ${deliveredO025.createdAt.formatVn()})")
 
     // Đổi giá danh mục P001 lên 999.000 và đổi hạng C003 lên GOLD -> Tiền đơn O025 và O003 đã tạo PHẢI GIỮ NGUYÊN!
     service.updateProductListPrice("P001", BigDecimal("999000"))
     service.updateCustomerTier("C003", MemberTier.GOLD)
     val o025AfterChange = service.getOrderSummary("O025")
     val o003AfterChange = service.getOrderSummary("O003")
-    println("  - Sau khi tăng giá P001 lên 999.000 và nâng C003 lên GOLD:")
-    println("    + Tiền phải trả của O025 vẫn giữ nguyên: ${o025AfterChange.payableAmount} (Kỳ vọng: 389500.00)")
-    println("    + Tiền phải trả của O003 vẫn giữ nguyên: ${o003AfterChange.payableAmount} (Kỳ vọng: 300000.00)")
+    println("  - Sau khi tang gia P001 len 999.000 va nang C003 len GOLD:")
+    println("    + Tien phai tra cua O025 van giu nguyen: ${o025AfterChange.payableAmount} (Ky vong: 389500.00)")
+    println("    + Tien phai tra cua O003 van giu nguyen: ${o003AfterChange.payableAmount} (Ky vong: 300000.00)")
     check(o025AfterChange.payableAmount == BigDecimal("389500.00"))
     check(o003AfterChange.payableAmount == BigDecimal("300000.00"))
 
@@ -182,7 +194,7 @@ fun main() {
     // PHẦN 5: KIỂM THỬ 12 ĐƠN KHÔNG HỢP LỆ (`SampleData.invalidOrders()`) & CA BIÊN
     // =========================================================================
     println("\n================================================================================")
-    println("5. KIỂM THỬ ĐỘC LẬP 12 TÌNH HUỐNG ĐƠN KHÔNG HỢP LỆ (`SampleData.invalidOrders()`)")
+    println("5. KIEM THU DOC LAP 12 TINH HUONG DON KHONG HOP LE (`SampleData.invalidOrders()`)")
     println("================================================================================")
     val freshServiceForValidation = NovaShopService(
         rawCustomers = SampleData.customers(),
@@ -194,37 +206,37 @@ fun main() {
     SampleData.invalidOrders().forEachIndexed { idx, invalidOrder ->
         when (val result = freshServiceForValidation.validateCandidateOrderSafely(invalidOrder)) {
             is OrderOperationResult.Rejected ->
-                println("  - Ca #${(idx + 1).toString().padStart(2, '0')} [Đơn ${result.orderId.padEnd(7)}] -> TỪ CHỐI ĐÚNG: ${result.reason}")
+                println("  - Ca #${(idx + 1).toString().padStart(2, '0')} [Don ${result.orderId.toAscii().padEnd(7)}] -> TU CHOI DUNG: ${result.reason.toAscii()}")
             is OrderOperationResult.Success ->
-                error("LỖI: Đơn không hợp lệ ${invalidOrder.id} lại vượt qua validation!")
+                error("LOI: Don khong hop le ${invalidOrder.id} lai vuot qua validation!")
         }
     }
     check(freshServiceForValidation.getAllOrders().size == orderCountBeforeInvalidTests) {
-        "Dữ liệu nguồn bị thay đổi sau khi kiểm tra đơn lỗi!"
+        "Du lieu nguon bi thay doi sau khi kiem tra don loi!"
     }
 
     // Kiểm tra thêm các ca biên: Chuyển trạng thái sai (DELIVERED -> CANCELLED) & Đơn chờ đúng 72 giờ (không quá hạn)
-    println("\n  - Kiểm tra ca biên chuyển trạng thái sai (DELIVERED -> CANCELLED trên O001):")
+    println("\n  - Kiem tra ca bien chuyen trang thai sai (DELIVERED -> CANCELLED tren O001):")
     try {
         freshServiceForValidation.transitionOrderStatus("O001", OrderStatus.CANCELLED)
     } catch (e: BusinessException) {
-        println("    + Bắt đúng BusinessException: ${e.message}")
-        println("    + Trạng thái O001 vẫn an toàn là: ${freshServiceForValidation.findOrderById("O001")?.status}")
+        println("    + Bat dung BusinessException: ${e.message?.toAscii()}")
+        println("    + Trang thai O001 van an toan la: ${freshServiceForValidation.findOrderById("O001")?.status}")
     }
 
     // Kiểm tra đơn O018 (tạo lúc 2026-09-25T10:00) tại mốc đúng 72 giờ (2026-09-28T10:00) -> KHÔNG bị coi là quá hạn!
     val exact72hReport = freshServiceForValidation.generateBusinessReport(
         asOf = LocalDateTime.of(2026, 9, 28, 10, 0)
     )
-    println("  - Kiểm tra ngưỡng chờ đúng 72 giờ (tại 28/09/2026 10:00 đối với O018 tạo 25/09/2026 10:00):")
-    println("    + Số đơn quá hạn (> 72h): ${exact72hReport.overdueAlerts.size} (Kỳ vọng: 0 vì đúng 72h chưa vượt quá 72h!)")
+    println("  - Kiem tra nguong cho dung 72 gio (tai 28/09/2026 10:00 doi voi O018 tao 25/09/2026 10:00):")
+    println("    + So don qua han (> 72h): ${exact72hReport.overdueAlerts.size} (Ky vong: 0 vi dung 72h chua vuot qua 72h!)")
     check(exact72hReport.overdueAlerts.isEmpty())
 
     // =========================================================================
     // PHẦN 6: ĐỐI CHIẾU THUẬT TOÁN SẮP XẾP MẢNG THỦ CÔNG VS COMPARATOR PIPELINE
     // =========================================================================
     println("\n================================================================================")
-    println("6. ÔN TẬP MẢNG & THUẬT TOÁN SORT: INSERTION SORT TRÊN MẢNG VS COMPARATOR")
+    println("6. ON TAP MANG & THUAT TOAN SORT: INSERTION SORT TREN MANG VS COMPARATOR")
     println("================================================================================")
     verifyManualArraySortAgainstComparator(q3Report.productReport.topProductsByCategory.values.flatten())
 
@@ -232,56 +244,57 @@ fun main() {
 }
 
 /**
- * Dựng văn bản báo cáo bằng `buildString` (tương đương `StringBuilder` trong Java).
+ * Dựng văn bản báo cáo bằng `buildString` (tương đương `StringBuilder` trong Java)
+ * với định dạng Tiếng Việt không dấu (ASCII-only) phục vụ hiển thị Console.
  */
 private fun formatBusinessReportText(report: BusinessReport): String = buildString {
     val ov = report.overview
-    appendLine("  [3.1] TỔNG QUAN KỲ BÁO CÁO (${ov.fromDate.formatVn()} - ${ov.toDate.formatVn()}):")
-    appendLine("    - Số đơn theo trạng thái : ${ov.countByStatus.entries.joinToString { "${it.key}=${it.value}" }}")
-    appendLine("    - Tổng doanh thu (Đơn giao): ${ov.totalRevenue} VNĐ")
-    appendLine("    - Giá trị TB mỗi đơn giao  : ${ov.averageDeliveredOrderValue} VNĐ")
-    appendLine("    - Số khách mua thực sự     : ${ov.distinctPurchasingCustomers} khách")
-    appendLine("    - Doanh thu theo tháng     : ${ov.monthlyRevenue.entries.joinToString { "${it.key}: ${it.value}" }}")
+    appendLine("  [3.1] TONG QUAN KY BAO CAO (${ov.fromDate.formatVn()} - ${ov.toDate.formatVn()}):")
+    appendLine("    - So don theo trang thai : ${ov.countByStatus.entries.joinToString { "${it.key}=${it.value}" }}")
+    appendLine("    - Tong doanh thu (Don giao): ${ov.totalRevenue} VND")
+    appendLine("    - Gia tri TB moi don giao  : ${ov.averageDeliveredOrderValue} VND")
+    appendLine("    - So khach mua thuc su     : ${ov.distinctPurchasingCustomers} khach")
+    appendLine("    - Doanh thu theo thang     : ${ov.monthlyRevenue.entries.joinToString { "${it.key}: ${it.value}" }}")
 
     val cr = report.customerReport
-    appendLine("\n  [3.2] BÁO CÁO KHÁCH HÀNG:")
-    appendLine("    - Top khách hàng chi tiêu cao nhất:")
+    appendLine("\n  [3.2] BAO CAO KHACH HANG:")
+    appendLine("    - Top khach hang chi tieu cao nhat:")
     cr.topSpendingCustomers.forEachIndexed { idx, rank ->
-        appendLine("      #${idx + 1} [${rank.customerId}] ${rank.customerName} (${rank.city}) | " +
-                "Chi tiêu: ${rank.totalSpent} VNĐ | Số đơn giao: ${rank.deliveredOrderCount} | Mua gần nhất: ${rank.latestOrderCreatedAt.formatVn()}")
+        appendLine("      #${idx + 1} [${rank.customerId}] ${rank.customerName.toAscii()} (${rank.city.toAscii()}) | " +
+                "Chi tieu: ${rank.totalSpent} VND | So don giao: ${rank.deliveredOrderCount} | Mua gan nhat: ${rank.latestOrderCreatedAt.formatVn()}")
     }
-    appendLine("    - Khách không có đơn giao trong kỳ (${cr.inactiveCustomersInPeriod.size}): ${cr.inactiveCustomersInPeriod.map { "${it.id}-${it.name}" }}")
-    appendLine("    - Các thành phố có khách mua hàng : ${cr.purchasingCustomerCities}")
+    appendLine("    - Khach khong co don giao trong ky (${cr.inactiveCustomersInPeriod.size}): ${cr.inactiveCustomersInPeriod.map { "${it.id}-${it.name.toAscii()}" }}")
+    appendLine("    - Cac thanh pho co khach mua hang : ${cr.purchasingCustomerCities.map { it.toAscii() }}")
 
     val pr = report.productReport
-    appendLine("\n  [3.3] BÁO CÁO SẢN PHẨM THEO CATEGORY:")
+    appendLine("\n  [3.3] BAO CAO SAN PHAM THEO CATEGORY:")
     pr.topProductsByCategory.forEach { (category, ranks) ->
         appendLine("    * Category [$category]:")
         if (ranks.isEmpty()) {
-            appendLine("      (Không có sản phẩm nào bán được)")
+            appendLine("      (Khong co san pham nao ban duoc)")
         } else {
             ranks.forEachIndexed { idx, p ->
-                appendLine("      #${idx + 1} [${p.productId}] ${p.productName.padEnd(20)} | " +
-                        "Tổng SL: ${p.totalQuantitySold} | Tiền hàng (Gross): ${p.grossMerchandiseAmount} | Số đơn phân biệt: ${p.distinctOrderCount}")
+                appendLine("      #${idx + 1} [${p.productId}] ${p.productName.toAscii().padEnd(20)} | " +
+                        "Tong SL: ${p.totalQuantitySold} | Tien hang (Gross): ${p.grossMerchandiseAmount} | So don phan biet: ${p.distinctOrderCount}")
             }
         }
     }
-    appendLine("    * Sản phẩm đang active nhưng chưa bán được trong kỳ (${pr.unsoldActiveProducts.size}): " +
-            "${pr.unsoldActiveProducts.map { "${it.id}-${it.name} (${it.category})" }}")
+    appendLine("    * San pham dang active nhung chua ban duoc trong ky (${pr.unsoldActiveProducts.size}): " +
+            "${pr.unsoldActiveProducts.map { "${it.id}-${it.name.toAscii()} (${it.category})" }}")
 
-    appendLine("\n  [3.4] PHÂN TÍCH CHÉO THÀNH PHỐ x HẠNG THÀNH VIÊN LÚC MUA:")
+    appendLine("\n  [3.4] PHAN TICH CHEO THANH PHO x HANG THANH VIEN LUC MUA:")
     report.cityTierBreakdown.forEach { stat ->
-        appendLine("    - ${stat.city.padEnd(14)} | Hạng lúc mua: ${stat.tierAtPurchase.name.padEnd(8)} | " +
-                "Số khách phân biệt: ${stat.distinctCustomerCount} | Doanh thu: ${stat.totalRevenue} VNĐ")
+        appendLine("    - ${stat.city.toAscii().padEnd(14)} | Hang luc mua: ${stat.tierAtPurchase.name.padEnd(8)} | " +
+                "So khach phan biet: ${stat.distinctCustomerCount} | Doanh thu: ${stat.totalRevenue} VND")
     }
 
-    appendLine("\n  [3.5] CẢNH BÁO VẬN HÀNH — ĐƠN CHỜ QUÁ HẠN (> 72 GIỜ TẠI AS_OF):")
+    appendLine("\n  [3.5] CANH BAO VAN HANH - DON CHO QUA HAN (> 72 GIO TAI AS_OF):")
     if (report.overdueAlerts.isEmpty()) {
-        appendLine("    - Không có đơn chờ quá hạn.")
+        appendLine("    - Khong co don cho qua han.")
     } else {
         report.overdueAlerts.forEach { alert ->
-            appendLine("    - CẢNH BÁO Đơn [${alert.orderId}] của khách [${alert.customerId} - ${alert.customerName}] | " +
-                    "Trạng thái: ${alert.status} | Tạo lúc: ${alert.createdAt.formatVn()} | Đã chờ: ${alert.waitingHours} giờ | Phải trả: ${alert.payableAmount} VNĐ")
+            appendLine("    - CANH BAO Don [${alert.orderId}] cua khach [${alert.customerId} - ${alert.customerName.toAscii()}] | " +
+                    "Trang thai: ${alert.status} | Tao luc: ${alert.createdAt.formatVn()} | Da cho: ${alert.waitingHours} gio | Phai tra: ${alert.payableAmount} VND")
         }
     }
 }
@@ -322,8 +335,8 @@ private fun verifyManualArraySortAgainstComparator(sourceRanks: List<ProductSale
     val manualIds = arrayForManualSort.map { it.productId }
     val comparatorIds = expectedByComparator.map { it.productId }
 
-    println("  - Thứ tự mã SP sau khi chạy Insertion Sort trên Array : $manualIds")
-    println("  - Thứ tự mã SP sau khi chạy Kotlin Comparator Pipeline: $comparatorIds")
-    check(manualIds == comparatorIds) { "Kết quả Insertion Sort không khớp với Comparator!" }
-    println("  => [PASS] Mốc 6: Insertion Sort trên mảng khớp tuyệt đối với Comparator Pipeline!")
+    println("  - Thu tu ma SP sau khi chay Insertion Sort tren Array : $manualIds")
+    println("  - Thu tu ma SP sau khi chay Kotlin Comparator Pipeline: $comparatorIds")
+    check(manualIds == comparatorIds) { "Ket qua Insertion Sort khong khop voi Comparator!" }
+    println("  => [PASS] Moc 6: Insertion Sort tren mang khop tuyet doi voi Comparator Pipeline!")
 }
