@@ -48,9 +48,9 @@ package view
 
 // 1. Enum Class với thuộc tính, phương thức và `.entries`
 private enum class PaymentMethod(val displayName: String, val feeRate: Double) {
-    BANK_TRANSFER("Chuyển khoản QR Napas", 0.0),
-    CREDIT_CARD("Thẻ tín dụng Quốc tế", 0.025),
-    E_WALLET("Ví điện tử", 0.01);
+    BANK_TRANSFER("Chuyen khoan QR Napas", 0.0),
+    CREDIT_CARD("The tin dung Quoc te", 0.025),
+    E_WALLET("Vi dien tu", 0.01);
 
     fun calculateFee(amount: Double): Double = amount * feeRate
 }
@@ -69,7 +69,7 @@ private fun <T> renderHttpResponse(result: CheckoutResult<T>): String = when (re
     is CheckoutResult.ValidationError ->
         "HTTP 400 BAD REQUEST | Field='${result.field}' -> ${result.message}"
     CheckoutResult.Unauthorized ->
-        "HTTP 401 UNAUTHORIZED | Vui lòng đăng nhập lại để thanh toán"
+        "HTTP 401 UNAUTHORIZED | Vui long dang nhap lai de thanh toan"
 }
 
 fun main() {
@@ -78,19 +78,19 @@ fun main() {
     // ========================================================================
     // 1. Duyệt Enum bằng `.entries` (Kotlin 1.9+ Idiomatic)
     // ========================================================================
-    println("\n[1] Danh sách phương thức thanh toán (`PaymentMethod.entries`):")
+    println("\n[1] Danh sach phuong thuc thanh toan (`PaymentMethod.entries`):")
     val orderAmount = 2_000.0
     for (method in PaymentMethod.entries) {
-        println("  - ${method.name} (${method.displayName}): Phí cho $orderAmount = ${method.calculateFee(orderAmount)}")
+        println("  - ${method.name} (${method.displayName}): Phi cho $orderAmount = ${method.calculateFee(orderAmount)}")
     }
 
     // ========================================================================
     // 2. Sealed Interface & Exhaustive `when` + Smart Cast
     // ========================================================================
-    println("\n[2] Mô hình hóa trạng thái nghiệp vụ với `sealed interface` & Exhaustive `when`:")
+    println("\n[2] Mo hinh hoa trang thai nghiep vu voi `sealed interface` & Exhaustive `when`:")
     val responses: List<CheckoutResult<String>> = listOf(
         CheckoutResult.Success(data = "Order #9001 Confirmed", receiptCode = "RCP-2026-88"),
-        CheckoutResult.ValidationError(field = "cardNumber", message = "Số thẻ phải đủ 16 chữ số"),
+        CheckoutResult.ValidationError(field = "cardNumber", message = "So the phai du 16 chu so"),
         CheckoutResult.Unauthorized
     )
 

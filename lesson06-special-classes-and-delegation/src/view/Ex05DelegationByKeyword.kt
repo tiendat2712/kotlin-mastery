@@ -71,9 +71,9 @@ private class AuditingUserRepository(
 ) : UserRepository by delegate {
 
     override fun save(id: String, username: String) {
-        println("    [AUDIT BEFORE SAVE] Chuẩn bị lưu user id='$id', username='$username'")
+        println("    [AUDIT BEFORE SAVE] Chuan bi luu user id='$id', username='$username'")
         delegate.save(id, username)
-        println("    [AUDIT AFTER SAVE]  Lưu thành công! Tổng số user hiện tại = ${countUsers()}")
+        println("    [AUDIT AFTER SAVE]  Luu thanh cong! Tong so user hien tai = ${countUsers()}")
     }
 }
 
@@ -82,7 +82,7 @@ private class StockTicker(val symbol: String, initialPrice: Double) {
 
     // `observable`: Tự động thông báo mỗi khi trạng thái thay đổi
     var tradingStatus: String by Delegates.observable("CLOSED") { property, oldValue, newValue ->
-        println("    [Observable '${property.name}'] Trạng thái sàn '$symbol' chuyển từ '$oldValue' -> '$newValue'")
+        println("    [Observable '${property.name}'] Trang thai san '$symbol' chuyen tu '$oldValue' -> '$newValue'")
     }
 
     // `vetoable`: Quyền phủ quyết (chặn các giá trị không hợp lệ trước khi ghi vào bộ nhớ)
@@ -91,9 +91,9 @@ private class StockTicker(val symbol: String, initialPrice: Double) {
         val minAllowed = oldPrice * 0.80
         val accepted = newPrice >= minAllowed
         if (!accepted) {
-            println("    [Vetoable REJECTED] Từ chối cập nhật '${property.name}' từ $oldPrice -> $newPrice (Thấp hơn giá sàn $minAllowed)")
+            println("    [Vetoable REJECTED] Tu choi cap nhat '${property.name}' tu $oldPrice -> $newPrice (Thap hon gia san $minAllowed)")
         } else {
-            println("    [Vetoable ACCEPTED] Chấp nhận cập nhật '${property.name}' từ $oldPrice -> $newPrice")
+            println("    [Vetoable ACCEPTED] Chap nhan cap nhat '${property.name}' tu $oldPrice -> $newPrice")
         }
         accepted
     }
@@ -109,10 +109,10 @@ fun main() {
     val repo: UserRepository = AuditingUserRepository(InMemoryUserRepository())
 
     // Các hàm không override vẫn hoạt động hoàn hảo nhờ ủy quyền tự động
-    println("  Tìm U01 (ủy quyền tự động) : ${repo.findById("U01")}")
+    println("  Tim U01 (uy quyen tu dong) : ${repo.findById("U01")}")
     // Hàm `save` chạy qua lớp bọc AuditingUserRepository
     repo.save("U03", "charlie_ddd")
-    println("  Danh sách tất cả users     : ${repo.findAllActive()}")
+    println("  Danh sach tat ca users     : ${repo.findAllActive()}")
 
     // ========================================================================
     // 2. Property Delegation (`Delegates.observable` & `Delegates.vetoable`)
@@ -124,11 +124,11 @@ fun main() {
 
     // Cập nhật hợp lệ (giảm 5% -> trong biên độ cho phép)
     fptStock.currentPrice = 95.0
-    println("  Giá FPT hiện tại: ${fptStock.currentPrice}")
+    println("  Gia FPT hien tai: ${fptStock.currentPrice}")
 
     // Cập nhật không hợp lệ (rơi xuống 50.0 -> giảm quá 20% -> bị phủ quyết!)
     fptStock.currentPrice = 50.0
-    println("  Giá FPT sau khi bị Veto giữ nguyên ở mức: ${fptStock.currentPrice}")
+    println("  Gia FPT sau khi bi Veto giu nguyen o muc: ${fptStock.currentPrice}")
 
     println("\n--- ___ * FINISH: Ex05DelegationByKeyword * ___ ---")
 }

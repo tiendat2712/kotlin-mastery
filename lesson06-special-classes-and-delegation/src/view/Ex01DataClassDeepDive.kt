@@ -2,7 +2,7 @@ package view
 
 /**
  * ============================================================================
- * BÀI 01: `data class` DEEP DIVE & CẠM BẪY CHẾT NGƯỜI VỚI JPA `@Entity`
+ * BÀI 01: `data class` DEEP DIVE, SHALLOW COPY & CẠM BẪY VỚI JPA `@Entity`
  * ============================================================================
  *
  * 1. BẢN CHẤT (UNDER THE HOOD / STACK vs HEAP / BYTECODE):
@@ -13,15 +13,21 @@ package view
  *   1. `equals(other: Any?): Boolean` -> So sánh giá trị từng thuộc tính (Structural Equality `==`).
  *   2. `hashCode(): Int`              -> Băm kết hợp tất cả thuộc tính trong Primary Constructor.
  *   3. `toString(): String`           -> Định dạng đẹp `"OrderDto(id=..., amount=..., status=...)"`.
- *   4. `copy(...): OrderDto`          -> Tạo một bản sao nông (shallow copy) trên HEAP, cho phép
- *                                        đổi một vài thuộc tính bằng Named Arguments mà vẫn giữ
- *                                        tính bất biến (`val` - Immutability).
+ *   4. `copy(...): OrderDto`          -> Tạo một bản sao nông (**SHALLOW COPY**) trên HEAP, cho phép
+ *                                        đổi một vài thuộc tính bằng Named Arguments.
  *   5. `component1()`, `component2()`, ... `componentN()` -> Phục vụ cú pháp Destructuring
  *                                        (`val (id, amount, status) = order`).
  *
- * LƯU Ý QUAN TRỌNG VỀ PHẠM VI:
- * Các thuộc tính khai báo **bên trong thân class `{ ... }`** (không nằm trong Primary Constructor)
- * sẽ **KHÔNG** được đưa vào `equals()`, `hashCode()`, `toString()`, và `copy()`!
+ * LƯU Ý QUAN TRỌNG VỀ PHẠM VI & TÍNH BẤT BIẾN (IMMUTABILITY):
+ * - Các thuộc tính khai báo **bên trong thân class `{ ... }`** (không nằm trong Primary Constructor)
+ *   sẽ **KHÔNG** được đưa vào `equals()`, `hashCode()`, `toString()`, và `copy()`!
+ * - `data class` với các thuộc tính `val` là một **lựa chọn phổ biến, tiện lợi cho DTO / Value Object**,
+ *   nhưng **KHÔNG tự động đảm bảo tính bất biến sâu (Deep Immutability)**!
+ *   + Hàm `.copy()` chỉ thực hiện **Shallow Copy (sao chép nông)**: nó tạo object vỏ mới trên HEAP,
+ *     nhưng các thuộc tính bên trong chỉ được chép lại **tham chiếu (reference)**.
+ *   + Nếu một thuộc tính bên trong là `MutableList<T>` hoặc một đối tượng có `var`, thì cả bản gốc
+ *     `original` lẫn bản sao `copy` đều **trỏ chung vào cùng 1 vùng nhớ trên HEAP**! Sửa nội dung
+ *     bên trong `copy` sẽ làm biến đổi luôn `original`!
  *
  * 2. SO SÁNH JAVA vs KOTLIN:
  * ----------------------------------------------------------------------------
@@ -31,31 +37,43 @@ package view
  *
  * 3. SPRING / JPA TRAP (CHỦ ĐỀ PHỎNG VẤN & PRODUCTION CỰC KỲ QUAN TRỌNG!):
  * ----------------------------------------------------------------------------
- * CÂU HỎI: "Tại sao `data class` là lựa chọn hoàn hảo cho DTO (Request/Response), nhưng lại
- *           ĐƯỢC KHUYẾN CÁO TUYỆT ĐỐI KHÔNG DÙNG cho JPA `@Entity` (Hibernate)?"
+ * CÂU HỎI: "Tại sao `data class` rất tiện cho DTO (Request/Response), nhưng lại
+ *           không phù hợp cho JPA `@Entity` (Hibernate), và cài đặt `equals`/`hashCode`
+ *           cho `@Entity` như thế nào mới chuẩn?"
  *
- * TRẢ LỜI (3 lý do kỹ thuật cốt tử):
- *   1. `data class` trong Kotlin KHÔNG THỂ đánh dấu `open` (luôn là `final`), trong khi
- *      Hibernate Lazy Loading cần tạo Proxy kế thừa class `@Entity`. Dù có plugin `kotlin("plugin.jpa")`
- *      giúp tạo no-arg constructor, bản thân `data class` vẫn xung đột triết lý với Hibernate.
- *   2. Cạm bẫy `hashCode()` khi lưu vào `HashSet`:
- *      Một JPA Entity thường có `@Id @GeneratedValue var id: Long? = null` và các trường `var`
- *      thay đổi được. `data class` tính `hashCode()` dựa trên TẤT CẢ thuộc tính. Khi Entity mới tạo
- *      (`id = null`) được đưa vào `HashSet`, rồi sau khi `repository.save(entity)`, Hibernate gán
- *      `id = 100L` -> `hashCode()` của object thay đổi ngay khi đang nằm trong `HashSet`, làm hỏng
- *      bucket của `HashSet` (tìm lại chính object đó trong Set sẽ trả về `false`!).
- *   3. Cạm bẫy `LazyInitializationException` & Đệ quy vô tận (`StackOverflowError`):
- *      Nếu Entity `Order` có `@OneToMany(fetch = LAZY) val items: List<OrderItem>` nằm trong
- *      Primary Constructor của `data class`, bất kỳ khi nào bạn gọi `println(order)` (`toString`)
- *      hoặc `order1 == order2` (`equals`), `data class` sẽ tự động chạm vào danh sách `items` ->
- *      kích hoạt truy vấn SQL ngoài ý muốn hoặc nổ `LazyInitializationException` nếu Session đã đóng!
+ * TRẢ LỜI KỸ THUẬT:
+ *   A. Tại sao không dùng `data class` cho `@Entity`?
+ *      1. `data class` trong Kotlin luôn là `final` (không thể `open`), trong khi Hibernate Lazy
+ *         Loading cần tạo Proxy kế thừa class `@Entity`.
+ *         *Lưu ý Kotlin 2.0.21*: Plugin `kotlin("plugin.jpa")` (`no-arg`) CHỈ tự sinh no-arg
+ *         constructor cho `@Entity`, chứ **KHÔNG tự động biến `@Entity` thành `open`**! Muốn
+ *         `@Entity` tự động `open` mà không gõ tay, cần cấu hình thêm
+ *         `allOpen { annotation("jakarta.persistence.Entity") }` hoặc viết `open class`.
+ *      2. Cạm bẫy `LazyInitializationException` & `StackOverflowError`:
+ *         Nếu `@OneToMany(fetch = LAZY)` nằm trong Primary Constructor của `data class`, việc gọi
+ *         `toString()`, `equals()`, hay `hashCode()` sẽ tự động chạm vào danh sách LAZY -> kích hoạt
+ *         câu lệnh SQL ngầm hoặc nổ `LazyInitializationException` khi Session đã đóng!
  *
- * GIẢI PHÁP CHUẨN CHO JPA `@Entity` TRONG KOTLIN:
- * Dùng `class` thường (kết hợp plugin `kotlin("plugin.jpa")` và `kotlin("plugin.allopen")`),
- * và viết `equals()`/`hashCode()` chỉ dựa trên khóa định danh (`id` khác null) hoặc Business Key!
+ *   B. Cạm bẫy `id.hashCode()` với `@GeneratedValue` và 2 hướng giải quyết chuẩn cho JPA `@Entity`:
+ *      - **CẢNH BÁO**: Tuyệt đối KHÔNG viết `override fun hashCode() = id.hashCode()` khi `id` được
+ *        Database sinh tự động (`@GeneratedValue var id: Long? = null`). Vì lúc mới khởi tạo (`id = null`),
+ *        nếu bỏ Entity vào `HashSet`, mã băm là `0`. Sau khi `entityManager.persist(entity)`, DB cấp
+ *        `id = 42L` -> mã băm đổi thành `42` ngay khi đang nằm trong `HashSet`, làm lệch bucket khiến
+ *        `set.contains(entity)` trả về `false`!
+ *      - **Hướng 1: Dùng Business Key / Natural ID bất biến (`@NaturalId val code: String` hoặc `UUID` tạo từ Client)**:
+ *        Nếu thực thể có một khóa nghiệp vụ duy nhất, biết ngay từ lúc khởi tạo và không bao giờ đổi
+ *        (ví dụ `val taxCode: String` hoặc `val externalUuid: UUID`), ta dùng khóa đó cho cả
+ *        `equals()` và `hashCode()`. Cách này phân tán đều các bucket trong `HashSet`/`HashMap` ($O(1)$).
+ *      - **Hướng 2: Dùng Constant `hashCode()` (`javaClass.hashCode()`) kết hợp `id != null && id == other.id`**:
+ *        + Ưu điểm: Khi chưa có Business Key và phải dùng `@GeneratedValue` ID, việc trả về hằng số
+ *          `javaClass.hashCode()` đảm bảo mã băm KHÔNG ĐỔI trước và sau khi `persist()`, giữ cho
+ *          `HashSet` hoạt động đúng đắn xuyên suốt mọi trạng thái vòng đời Entity.
+ *        + Đánh đổi (Trade-off): Vì mọi thực thể cùng class trả về cùng một mã băm, chúng sẽ rơi vào
+ *          cùng 1 bucket trong `HashSet`, làm độ phức tạp tra cứu giảm từ $O(1)$ xuống $O(N)$. Do đó,
+ *          với cách này, tránh nhét hàng nghìn thực thể vào cùng một `HashSet` lớn!
  */
 
-// 1. DTO chuẩn mực với `data class` (Bất biến hoàn toàn với `val`)
+// 1. DTO tiện lợi với `data class` (chứa các kiểu dữ liệu bất biến `String`, `Double`)
 private data class OrderSummaryDto(
     val orderId: String,
     val totalAmount: Double,
@@ -65,22 +83,26 @@ private data class OrderSummaryDto(
     var cachedRenderTimestamp: Long = 0L
 }
 
-// 2. Mô phỏng cách viết JPA @Entity chuẩn mực trong Spring Data JPA + Kotlin (KHÔNG dùng data class)
+// 2. Minh họa `.copy()` chỉ là SHALLOW COPY (Sao chép nông)
+private data class OrderDraft(
+    val id: String,
+    val tags: MutableList<String> // CẢNH BÁO: Dùng MutableList bên trong data class!
+)
+
+// 3. Mô phỏng JPA @Entity chuẩn mực (Hướng 2: Constant hashCode cho DB-generated ID)
 private open class CustomerJpaEntity(
     var id: Long? = null,
-    var email: String, // Business Key hoặc mutable field
+    var email: String,
     var fullName: String
 ) {
-    // Chuẩn Hibernate/JPA: Chỉ so sánh dựa trên ID khi ID đã được DB cấp phát (khác null),
-    // hoặc kiểm tra cùng tham chiếu bộ nhớ (`this === other`).
+    // Chỉ coi 2 thực thể khác tham chiếu là bằng nhau khi CẢ HAI đã được DB cấp ID (id != null) và trùng ID
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CustomerJpaEntity) return false
         return id != null && id == other.id
     }
 
-    // Trả về hằng số (class hashCode) để khi `id` chuyển từ `null` -> `101L` sau khi save(),
-    // hash bucket trong HashSet<CustomerJpaEntity> KHÔNG BAO GIỜ bị hỏng!
+    // Constant hashCode giữ an toàn cho HashSet khi id chuyển từ null -> 42L sau persist()
     override fun hashCode(): Int = javaClass.hashCode()
 
     override fun toString(): String = "CustomerJpaEntity(id=$id, email='$email', fullName='$fullName')"
@@ -92,7 +114,7 @@ fun main() {
     // ========================================================================
     // 1. Structural Equality (==), toString(), copy() và Destructuring
     // ========================================================================
-    println("\n[1] Sức mạnh của `data class` cho DTO / Value Object:")
+    println("\n[1] Su tien loi cua `data class` cho DTO / Value Object:")
     val dto1 = OrderSummaryDto("ORD-101", 1500.0, "PENDING").apply {
         cachedRenderTimestamp = 111111L
     }
@@ -103,28 +125,105 @@ fun main() {
     println("  dto1.toString()        : $dto1")
     // Dù `cachedRenderTimestamp` khác nhau (111111L vs 999999L), nhưng vì nó nằm trong thân class
     // nên dto1 == dto2 vẫn là TRUE!
-    println("  dto1 == dto2           : ${dto1 == dto2} (bỏ qua thuộc tính trong thân class)")
+    println("  dto1 == dto2           : ${dto1 == dto2} (bo qua thuoc tinh trong than class)")
+    check(dto1 == dto2)
 
-    // Cập nhật trạng thái bất biến bằng `.copy(...)`
+    // Cập nhật trạng thái bằng `.copy(...)`
     val confirmedDto = dto1.copy(status = "CONFIRMED")
-    println("  Sau khi .copy(...)     : $confirmedDto (dto1 gốc vẫn là ${dto1.status})")
+    println("  Sau khi .copy(...)     : $confirmedDto (dto1 goc van la ${dto1.status})")
+    check(dto1.status == "PENDING" && confirmedDto.status == "CONFIRMED")
 
     // Destructuring declaration (gọi ngầm component1(), component2(), component3())
     val (id, amount, currentStatus) = confirmedDto
     println("  Destructuring          : id=$id, amount=$amount, status=$currentStatus")
 
     // ========================================================================
-    // 2. Minh họa cách JPA Entity chuẩn giữ an toàn cho HashSet khi ID thay đổi
+    // 2. Cạm bẫy Shallow Copy của `.copy()` khi chứa thuộc tính khả biến (Mutable)
     // ========================================================================
-    println("\n[2] Kiểm chứng JPA Entity chuẩn mực trong HashSet trước và sau khi DB cấp ID:")
+    println("\n[2] Cam bay Shallow Copy: `data class` + `val` KHONG tu dong la Deep Immutability!")
+    val originalDraft = OrderDraft(id = "ORD-1", tags = mutableListOf("NEW", "RETAIL"))
+    val copiedDraft = originalDraft.copy(id = "ORD-2")
+
+    // Cả originalDraft.tags và copiedDraft.tags đều trỏ tới CÙNG 1 danh sách trên HEAP!
+    copiedDraft.tags.add("URGENT")
+
+    println("  originalDraft.tags sau khi sua copiedDraft.tags : ${originalDraft.tags}")
+    println("  copiedDraft.tags                                : ${copiedDraft.tags}")
+    println("  Cung tham chieu tren HEAP (===)                 : ${originalDraft.tags === copiedDraft.tags}")
+    check(originalDraft.tags === copiedDraft.tags)
+    check(originalDraft.tags.contains("URGENT"))
+
+    // Cách copy sâu (Deep Copy) an toàn nếu buộc phải tách nhánh danh sách:
+    val safeCopiedDraft = originalDraft.copy(id = "ORD-3", tags = originalDraft.tags.toMutableList())
+    safeCopiedDraft.tags.add("VIP_ONLY")
+    check(!originalDraft.tags.contains("VIP_ONLY"))
+
+    // ========================================================================
+    // 3. Minh họa cách JPA Entity chuẩn giữ an toàn cho HashSet khi ID thay đổi
+    // ========================================================================
+    println("\n[3] Kiem chung JPA Entity trong HashSet truoc va sau khi DB cap ID:")
     val entity = CustomerJpaEntity(id = null, email = "user@spring.io", fullName = "Spring User")
     val entitySet = hashSetOf(entity)
 
-    println("  Trước khi save (id=null) -> entitySet.contains(entity): ${entitySet.contains(entity)}")
+    println("  Truoc khi save (id=null) -> entitySet.contains(entity): ${entitySet.contains(entity)}")
+    check(entitySet.contains(entity))
 
     // Giả lập Hibernate gán ID sau câu lệnh INSERT INTO
     entity.id = 42L
     println("  Sau khi save   (id=42L)  -> entitySet.contains(entity): ${entitySet.contains(entity)}")
+    check(entitySet.contains(entity))
+
+    // ========================================================================
+    // 4. GÓC TỰ LUYỆN (ACTIVE LEARNING)
+    // ========================================================================
+    println("\n[4] Goc Tu Luyen (Active Learning):")
+
+    // ------------------------------------------------------------------------
+    // Bài 1 (Dự đoán kết quả): Thuộc tính trong thân `data class` và Shallow Copy
+    // ------------------------------------------------------------------------
+    val p1 = OrderSummaryDto("ORD-99", 500.0, "PAID").apply { cachedRenderTimestamp = 10L }
+    val p2 = p1.copy() // Không truyền tham số -> giữ nguyên các thuộc tính trong Primary Constructor
+    // Hỏi: `p2.cachedRenderTimestamp` bằng `10L` hay `0L`? Và `p1 == p2` là `true` hay `false`?
+    println("  [Bai 1 - Du doan] p2.cachedRenderTimestamp = ${p2.cachedRenderTimestamp}, p1 == p2 = ${p1 == p2}")
+    check(p2.cachedRenderTimestamp == 0L) // Vì copy() chỉ chép các thuộc tính trong Primary Constructor!
+    check(p1 == p2)
+
+    // ------------------------------------------------------------------------
+    // Bài 2 (Tìm lỗi): Dùng `id.hashCode()` cho JPA Entity có `@GeneratedValue`
+    // ------------------------------------------------------------------------
+    class BrokenJpaEntity(var id: Long? = null, var name: String) {
+        override fun equals(other: Any?): Boolean =
+            this === other || (other is BrokenJpaEntity && this.id != null && this.id == other.id)
+
+        // LỖI NGHIÊM TRỌNG: Khi id đổi từ null -> 100L sau persist(), hashCode() bị thay đổi!
+        override fun hashCode(): Int = this.id?.hashCode() ?: 0
+    }
+    val broken = BrokenJpaEntity(id = null, name = "Broken Item")
+    val brokenSet = hashSetOf(broken)
+    broken.id = 100L // Giả lập DB cấp ID sau khi nằm trong HashSet
+    println("  [Bai 2 - Tim loi] brokenSet.contains(broken) sau khi gan ID = ${brokenSet.contains(broken)} (Mat dau trong HashSet!)")
+    check(!brokenSet.contains(broken))
+
+    // ------------------------------------------------------------------------
+    // Bài 3 (Tự viết nhỏ):
+    // ------------------------------------------------------------------------
+    // [ĐỀ BÀI]:
+    // Hãy viết hàm `cloneWithExtraTag(draft: OrderDraft, newId: String, extraTag: String): OrderDraft`
+    // sử dụng `.copy(...)` nhưng đảm bảo danh sách `tags` của bản sao hoàn toàn độc lập trên HEAP
+    // (không làm ảnh hưởng tới `draft.tags` ban đầu).
+
+    // [LỜI GIẢI THAM KHẢO]:
+    fun cloneWithExtraTag(draft: OrderDraft, newId: String, extraTag: String): OrderDraft {
+        val independentTags = draft.tags.toMutableList().apply { add(extraTag) }
+        return draft.copy(id = newId, tags = independentTags)
+    }
+
+    val baseDraft = OrderDraft("ORD-BASE", mutableListOf("STANDARD"))
+    val clonedDraft = cloneWithExtraTag(baseDraft, "ORD-CLONE", "FLASH_SALE")
+    println("  [Bai 3 - Tu viet] baseDraft.tags=${baseDraft.tags} | clonedDraft.tags=${clonedDraft.tags}")
+    check(baseDraft.tags == listOf("STANDARD"))
+    check(clonedDraft.tags == listOf("STANDARD", "FLASH_SALE"))
+    check(baseDraft.tags !== clonedDraft.tags)
 
     println("\n--- ___ * FINISH: Ex01DataClassDeepDive * ___ ---")
 }

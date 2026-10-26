@@ -73,9 +73,9 @@ private class ApiToken private constructor(
 
         // Static Factory Method thay thế cho việc gọi constructor trực tiếp
         fun of(rawKey: String, retry: Int = DEFAULT_MAX_RETRY): ApiToken {
-            println("    [Logger: $loggerName] Đang khởi tạo ApiToken qua companion object factory...")
+            println("    [Logger: $loggerName] Dang khoi tao ApiToken qua companion object factory...")
             require(rawKey.startsWith(REQUIRED_PREFIX)) {
-                "Token phải bắt đầu bằng '$REQUIRED_PREFIX'"
+                "Token phai bat dau bang '$REQUIRED_PREFIX'"
             }
             return ApiToken(rawKey, retry)
         }
@@ -103,21 +103,21 @@ fun main() {
     // 2. Sử dụng `companion object` (Constants & Factory Method)
     // ========================================================================
     println("\n[2] `companion object` (const val & Static Factory Method `of`):")
-    println("  Hằng số ApiToken.DEFAULT_MAX_RETRY = ${ApiToken.DEFAULT_MAX_RETRY}")
+    println("  Hang so ApiToken.DEFAULT_MAX_RETRY = ${ApiToken.DEFAULT_MAX_RETRY}")
     val token = ApiToken.of("sk_live_9876543210abcdef")
-    println("  Đã tạo token: $token")
+    println("  Da tao token: $token")
 
     // ========================================================================
     // 3. Sử dụng Object Expression (Anonymous Inner Class có nhiều phương thức)
     // ========================================================================
-    println("\n[3] Object Expression (`object : RetryListener` cho interface có nhiều hàm):")
+    println("\n[3] Object Expression (`object : RetryListener` cho interface co nhieu ham):")
     val customListener = object : RetryListener {
         override fun onAttempt(attempt: Int) {
-            println("    [Anonymous Object] Đang thử lại lần thứ #$attempt...")
+            println("    [Anonymous Object] Dang thu lai lan thu #$attempt...")
         }
 
         override fun onExhausted() {
-            println("    [Anonymous Object] Đã hết số lần thử lại (${ApiToken.DEFAULT_MAX_RETRY} lần)!")
+            println("    [Anonymous Object] Da het so lan thu lai (${ApiToken.DEFAULT_MAX_RETRY} lan)!")
         }
     }
     customListener.onAttempt(1)

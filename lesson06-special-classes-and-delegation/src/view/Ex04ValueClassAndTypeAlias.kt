@@ -52,21 +52,21 @@ private typealias UserRolePermissions = Map<String, Set<String>>
 @JvmInline
 value class CustomerId(val value: String) {
     init {
-        require(value.startsWith("CUST-")) { "CustomerId phải bắt đầu bằng 'CUST-' (nhận được: $value)" }
+        require(value.startsWith("CUST-")) { "CustomerId phai bat dau bang 'CUST-' (nhan duoc: $value)" }
     }
 }
 
 @JvmInline
 value class ProductId(val value: String) {
     init {
-        require(value.startsWith("PROD-")) { "ProductId phải bắt đầu bằng 'PROD-' (nhận được: $value)" }
+        require(value.startsWith("PROD-")) { "ProductId phai bat dau bang 'PROD-' (nhan duoc: $value)" }
     }
 }
 
 @JvmInline
 value class EmailAddress(val value: String) {
     init {
-        require(value.contains("@") && value.contains(".")) { "Email không hợp lệ: $value" }
+        require(value.contains("@") && value.contains(".")) { "Email khong hop le: $value" }
     }
 
     // Value class vẫn có thể có Computed Property và phương thức riêng!
@@ -75,8 +75,8 @@ value class EmailAddress(val value: String) {
 }
 
 private fun processPurchase(customerId: CustomerId, productId: ProductId, receiptEmail: EmailAddress) {
-    println("  [Order Service] Khách hàng '${customerId.value}' mua sản phẩm '${productId.value}'")
-    println("                  Gửi hóa đơn về '${receiptEmail.value}' (Domain: ${receiptEmail.domain})")
+    println("  [Order Service] Khach hang '${customerId.value}' mua san pham '${productId.value}'")
+    println("                  Gui hoa don ve '${receiptEmail.value}' (Domain: ${receiptEmail.domain})")
 }
 
 fun main() {
@@ -85,12 +85,12 @@ fun main() {
     // ========================================================================
     // 1. Sử dụng `typealias` để tăng độ dễ đọc cho cấu trúc dữ liệu phức tạp
     // ========================================================================
-    println("\n[1] Sử dụng `typealias UserRolePermissions = Map<String, Set<String>>`:")
+    println("\n[1] Su dung `typealias UserRolePermissions = Map<String, Set<String>>`:")
     val permissions: UserRolePermissions = mapOf(
         "ADMIN" to setOf("READ", "WRITE", "DELETE"),
         "AUDITOR" to setOf("READ")
     )
-    println("  Quyền hệ thống: $permissions")
+    println("  Quyen he thong: $permissions")
 
     // ========================================================================
     // 2. Sử dụng `@JvmInline value class` chống truyền nhầm tham số
@@ -106,11 +106,11 @@ fun main() {
     // trình biên dịch sẽ chặn đứng ngay lập tức thay vì để lọt lỗi xuống Database!
     // processPurchase(prodId, custId, email) // ERROR: Argument type mismatch!
 
-    println("\n[3] Validation tự động bên trong `init` của `@JvmInline value class`:")
+    println("\n[3] Validation tu dong ben trong `init` cua `@JvmInline value class`:")
     try {
         EmailAddress("invalid-email-without-at-sign")
     } catch (e: IllegalArgumentException) {
-        println("  -> Đã chặn Email lỗi ngay lúc khởi tạo: ${e.message}")
+        println("  -> Da chan Email loi ngay luc khoi tao: ${e.message}")
     }
 
     println("\n--- ___ * FINISH: Ex04ValueClassAndTypeAlias * ___ ---")
