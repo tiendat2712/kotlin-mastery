@@ -18,14 +18,20 @@ import kotlin.system.measureTimeMillis
  *      (1) `runBlocking { ... }`:
  *          - Là cây cầu nối từ thế giới Blocking (như `fun main()` hoặc hàm `@Test` JUnit) sang thế giới Suspending.
  *          - Nó khóa (block) OS Thread đang gọi nó cho đến khi toàn bộ các Coroutine con bên trong hoàn tất.
- *          - **TUYỆT ĐỐI KHÔNG dùng `runBlocking` bên trong code nghiệp vụ của Spring Controller/Service**
- *            vì nó sẽ khóa mất Thread của Server!
+ *          - **Không dùng `runBlocking` bên trong luồng xử lý request bất đồng bộ (như Spring WebFlux)**
+ *            vì nó sẽ khóa mất Event Loop Thread của Server!
  *      (2) `launch { ... } -> Job`:
- *          - Khởi chạy một Coroutine mới theo kiểu **"Fire-and-Forget"** (Bắn và quên — không trả về kết quả dữ liệu,
- *            tương tự `Runnable` / `CompletableFuture<Void>` trong Java).
- *          - Trả về đối tượng `Job` để quản lý vòng đời: `job.join()` (chờ xong), `job.cancel()` (hủy bỏ).
+ *          - Dùng để khởi chạy một Coroutine thực hiện công việc **không trả về giá trị dữ liệu đầu ra**
+ *            (tương tự tác vụ kiểu `Unit` / `Runnable`, khác với `async` trả về kết quả `T`).
+ *          - **Lưu ý quan trọng (Tránh hiểu lầm khái niệm "Fire-and-Forget")**:
+ *            Dù `launch` không trả về dữ liệu, bạn **KHÔNG ĐƯỢC quên vòng đời của nó**! Trong Kotlin Coroutines,
+ *            mọi `launch` đều chịu sự quản lý chặt chẽ của `CoroutineScope` cha (**Structured Concurrency**):
+ *            + Scope cha luôn tự động đợi mọi `launch` con hoàn thành trước khi Scope cha kết thúc.
+ *            + Nếu Scope cha bị hủy hoặc một Coroutine con ném ngoại lệ không được xử lý, các Coroutine con khác
+ *              trong cùng `coroutineScope` cũng sẽ bị hủy theo.
+ *            + Đối tượng `Job` trả về cho phép bạn chủ động theo dõi hoặc điều khiển vòng đời: `job.join()`, `job.cancel()`.
  *      (3) `async { ... } -> Deferred<T>`:
- *          - Khởi chạy một Coroutine mới để **tính toán và trả về một giá trị kiểu `T`**
+ *          - Khởi chạy một Coroutine con để **tính toán và trả về một giá trị kiểu `T`**
  *            (tương tự `Callable<T>` / `CompletableFuture<T>` trong Java).
  *          - Trả về `Deferred<T>` (là một lớp con của `Job` có thêm hàm `suspend fun await(): T`).
  *          - Khi gọi `deferred.await()`, Coroutine gọi sẽ tạm dừng (suspend, KHÔNG khóa OS Thread!)
@@ -49,10 +55,11 @@ import kotlin.system.measureTimeMillis
  *      ```
  *
  * 3. SPRING KOTLIN CORNER:
- *    - Trong kiến trúc Microservices / BFF (Backend For Frontend) với Spring Boot Kotlin:
- *      Khi một API `/api/v1/customers/{id}/dashboard` cần gọi đồng thời 2 microservice độc lập
+ *    - Trong kiến trúc Microservices / BFF (Backend For Frontend):
+ *      Khi một API `/api/v1/customers/{id}/dashboard` cần gọi đồng thời 2 dịch vụ độc lập
  *      (`CustomerService` mất 150ms và `OrderService` mất 150ms), việc bọc trong `coroutineScope` với
- *      2 lệnh `async` sẽ giúp giảm thời gian phản hồi API từ **~300ms xuống chỉ còn ~150ms**!
+ *      2 lệnh `async` sẽ giúp giảm tổng thời gian chờ từ **~300ms xuống chỉ còn ~150ms**, đồng thời
+ *      đảm bảo nếu 1 bên lỗi thì bên kia được hủy ngay lập tức nhờ Structured Concurrency!
  */
 
 data class CustomerProfileDto(val customerId: String, val fullName: String, val tier: String)
@@ -62,7 +69,7 @@ data class CustomerDashboardView(val profile: CustomerProfileDto, val recentOrde
 // Giả lập gọi Microservice 1: Tốn 150ms I/O
 suspend fun fetchCustomerProfile(customerId: String): CustomerProfileDto {
     delay(150)
-    return CustomerProfileDto(customerId, "Nguyễn Minh An", "GOLD")
+    return CustomerProfileDto(customerId, "Nguyen Minh An", "GOLD")
 }
 
 // Giả lập gọi Microservice 2: Tốn 150ms I/O
@@ -81,9 +88,9 @@ suspend fun loadDashboardSequentially(customerId: String): CustomerDashboardView
     return CustomerDashboardView(profile, orders)
 }
 
-// Cách 2: Gọi SONG SONG (Concurrent Decomposition với `async` + `await`) -> Tổng thời gian ~ max(150ms, 150ms) = ~150ms!
+// Cách 2: Gọi ĐỒNG THỜI (Concurrent Decomposition với `async` + `await`) -> Tổng thời gian ~ max(150ms, 150ms) = ~150ms!
 suspend fun loadDashboardConcurrently(customerId: String): CustomerDashboardView = coroutineScope {
-    // Khởi chạy cả 2 tác vụ NGAY LẬP TỨC cùng lúc
+    // Khởi chạy cả 2 tác vụ NGAY LẬP TỨC cùng lúc trong phạm vi `coroutineScope`
     val profileDeferred: Deferred<CustomerProfileDto> = async { fetchCustomerProfile(customerId) }
     val ordersDeferred: Deferred<List<OrderSummaryDto>> = async { fetchOrderHistory(customerId) }
 
@@ -100,16 +107,16 @@ fun main() = runBlocking {
     // =========================================================================
     // 1. `launch` BUILDER VÀ QUẢN LÝ VÒNG ĐỜI VỚI `Job` (`join`, `cancel`)
     // =========================================================================
-    println("1. Sử dụng `launch` (Fire-and-Forget) và điều khiển `Job`:")
+    println("1. Su dung `launch` (tac vu khong tra ve du lieu, gan voi Scope cha) va dieu khien `Job`:")
     val auditLogJob: Job = launch {
-        println("  - [AuditLog Job] Bắt đầu ghi log bất đồng bộ...")
+        println("  - [AuditLog Job] Bat dau ghi log bat dong bo...")
         delay(80)
-        println("  - [AuditLog Job] Đã ghi xong Audit Log vào hệ thống!")
+        println("  - [AuditLog Job] Da ghi xong Audit Log vao he thong!")
     }
 
     val slowReportJob: Job = launch {
         repeat(5) { step ->
-            println("  - [SlowReport Job] Đang tổng hợp bước ${step + 1}/5...")
+            println("  - [SlowReport Job] Dang tong hop buoc ${step + 1}/5...")
             delay(60)
         }
     }
@@ -118,24 +125,27 @@ fun main() = runBlocking {
     auditLogJob.join()
     // Hủy slowReportJob khi nó mới chạy được một phần
     slowReportJob.cancel()
-    println("  -> Đã gọi slowReportJob.cancel()! (isActive=${slowReportJob.isActive}, isCancelled=${slowReportJob.isCancelled})")
+    slowReportJob.join()
+    println("  -> Da goi slowReportJob.cancel()! (isActive=${slowReportJob.isActive}, isCancelled=${slowReportJob.isCancelled})")
+    check(auditLogJob.isCompleted && slowReportJob.isCancelled)
 
     // =========================================================================
-    // 2. SO SÁNH GỌI TUẦN TỰ VS GỌI SONG SONG BẰNG `async` & `await()`
+    // 2. SO SÁNH GỌI TUẦN TỰ VS GỌI ĐỒNG THỜI BẰNG `async` & `await()`
     // =========================================================================
-    println("\n2. So sánh hiệu năng: Tuần tự (Sequential) vs Song song (`async` + `await`):")
+    println("\n2. So sanh hieu nang: Tuan tu (Sequential) vs Dong thoi (`async` + `await`):")
 
     val sequentialMs = measureTimeMillis {
         val dashboard = loadDashboardSequentially("C001")
-        println("  - [Tuần tự] Kết quả: ${dashboard.profile.fullName}, số đơn: ${dashboard.recentOrders.size}")
+        println("  - [Tuan tu] Ket qua: ${dashboard.profile.fullName}, so don: ${dashboard.recentOrders.size}")
     }
-    println("  -> Thời gian chạy TUẦN TỰ: ${sequentialMs}ms (~300ms)")
+    println("  -> Thoi gian chay TUAN TU: ${sequentialMs}ms (~300ms)")
 
     val concurrentMs = measureTimeMillis {
         val dashboard = loadDashboardConcurrently("C001")
-        println("  - [Song song async/await] Kết quả: ${dashboard.profile.fullName}, số đơn: ${dashboard.recentOrders.size}")
+        println("  - [Dong thoi async/await] Ket qua: ${dashboard.profile.fullName}, so don: ${dashboard.recentOrders.size}")
     }
-    println("  -> Thời gian chạy SONG SONG (`async`/`await`): ${concurrentMs}ms (~150ms - Nhanh gấp đôi!)")
+    println("  -> Thoi gian chay DONG THOI (`async`/`await`): ${concurrentMs}ms (~150ms - Nhanh gap doi!)")
+    check(concurrentMs < sequentialMs)
 
     println("\n--- ___ * END EX02 * ___ ---")
 }

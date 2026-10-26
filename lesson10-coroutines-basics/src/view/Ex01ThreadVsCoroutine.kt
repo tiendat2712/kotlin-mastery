@@ -6,62 +6,68 @@ import kotlinx.coroutines.runBlocking
 import kotlin.system.measureTimeMillis
 
 /**
- * BÀI 01: OS THREAD VS KOTLIN COROUTINE & BẢN CHẤT CỦA `suspend fun`
+ * BÀI 01: OS THREAD VS KOTLIN COROUTINE, CONCURRENCY VS PARALLELISM & BẢN CHẤT CỦA `suspend fun`
  *
  * 1. BẢN CHẤT (UNDER THE HOOD / STACK VS HEAP / CPS & STATE MACHINE):
  *    - **OS Thread (`java.lang.Thread` trong `D:\Java_Journey\lesson14-thread`)**:
  *      + Mỗi Platform Thread trong JVM ánh xạ 1-1 với một Kernel Thread của Hệ điều hành (OS).
- *      + Mỗi Thread chiếm ~1MB vùng nhớ Stack riêng biệt và việc chuyển ngữ cảnh (Context Switch)
- *        giữa các Thread phải đi qua nhân OS (Kernel space) rất tốn kém CPU.
+ *      + Một OS Thread thường được cấp phát vùng nhớ Stack riêng (mặc định thường khoảng ~1MB tùy hệ điều hành,
+ *        kiến trúc JVM 64-bit và tham số cấu hình `-Xss`), và việc chuyển ngữ cảnh (Context Switch)
+ *        giữa các OS Thread phải đi qua nhân OS (Kernel space).
  *      + Khi bạn gọi `Thread.sleep(100)` hoặc chờ I/O đồng bộ, toàn bộ OS Thread đó bị **BLOCK (phong tỏa)**:
- *        nó nằm im giữ nguyên 1MB Stack mà không thể làm việc khác! Tạo 100.000 OS Thread dễ dàng gây `OutOfMemoryError`.
+ *        nó đứng yên giữ nguyên vùng nhớ Stack mà không thể xử lý tác vụ khác trong lúc chờ.
  *
  *    - **Kotlin Coroutine ("Lightweight Thread" ở tầng User-space)**:
- *      + Coroutine KHÔNG gắn chặt vào một OS Thread cố định. Hàng chục nghìn Coroutine có thể chạy
- *        luân phiên trên một nhóm nhỏ (Thread Pool) chỉ gồm vài OS Thread!
- *      + Một Coroutine thực chất chỉ là một đối tượng nhỏ trên **Heap** (vài chục đến vài trăm bytes) lưu trạng thái.
- *      + Khi gặp lệnh `delay(100)` (hoặc chờ kết quả DB/HTTP non-blocking), Coroutine **TẠM DỪNG (Suspend)**:
+ *      + Coroutine KHÔNG gắn chặt vào một OS Thread cố định. Hàng nghìn Coroutine có thể chạy
+ *        luân phiên trên một nhóm nhỏ (Thread Pool) chỉ gồm vài OS Thread.
+ *      + Trạng thái của một Coroutine được lưu trong các đối tượng `Continuation` trên **Heap** (dung lượng
+ *        thường chỉ vài chục đến vài trăm bytes tùy số lượng biến cục bộ và độ sâu chuỗi gọi hàm).
+ *      + Khi gặp điểm tạm dừng thực sự như `delay(100)` (hoặc chờ kết quả DB/HTTP non-blocking), Coroutine **TẠM DỪNG (Suspend)**:
  *        nó lưu lại vị trí hiện tại vào đối tượng `Continuation` trên Heap rồi **TRẢ LẠI OS THREAD**
- *        để OS Thread đó đi chạy Coroutine khác ngay lập tức! Khi hết 100ms, một OS Thread trong pool
+ *        để OS Thread đó đi chạy Coroutine khác! Khi hết 100ms, một OS Thread trong Dispatcher
  *        sẽ tiếp tục (Resume) thực thi phần còn lại của Coroutine.
  *
- *    - **Điều gì xảy ra khi biên dịch `suspend fun` ra JVM Bytecode? (CPS - Continuation Passing Style)**:
- *      Khi bạn viết:
- *      ```kotlin
- *      suspend fun fetchUserName(id: String): String
- *      ```
- *      Trình biên dịch Kotlin biến đổi chữ ký hàm trong Bytecode thành:
- *      ```java
- *      public static final Object fetchUserName(String id, Continuation<? super String> $completion)
- *      ```
- *      Bên trong thân hàm, Kotlin sinh ra một **State Machine (Máy trạng thái `switch (label)`)**:
- *      - `label = 0`: Chạy đoạn code trước điểm `delay()` đầu tiên -> Lưu biến cục bộ vào `$completion`,
- *        tăng `label = 1` và trả về cờ `COROUTINE_SUSPENDED` để giải phóng OS Thread!
- *      - `label = 1`: Khi `delay()` xong, hàm được gọi lại với `$completion`, nhảy thẳng tới `case 1:`
- *        để chạy tiếp đoạn code phía sau!
+ *    - **PHÂN BIỆT RÕ CONCURRENCY (ĐỒNG THỜI) VS PARALLELISM (SONG SONG)**:
+ *      + **Concurrency (Đồng thời)**: Nhiều tác vụ cùng được khởi phát và có vòng đời chồng lấp nhau theo thời gian
+ *        nhờ đan xen (interleaving) khi một tác vụ tạm dừng chờ I/O. Ngay cả khi chỉ có **1 OS Thread duy nhất**
+ *        (như `runBlocking`), 1.000 Coroutine vẫn đạt được **Concurrency** (cùng chờ `delay(50)` một lúc)!
+ *      + **Parallelism (Song song vật lý)**: Nhiều tác vụ thực sự chạy tại cùng một thời điểm vật lý trên
+ *        **nhiều nhân CPU (Multi-core)** thông qua các Dispatcher đa luồng như `Dispatchers.Default`.
+ *
+ *    - **HIỂU ĐÚNG VỀ TỪ KHÓA `suspend` (TRÁNH NGỘ NHẬN PHỔ BIẾN!)**:
+ *      + **Ngộ nhận**: *"Cứ thêm từ khóa `suspend` vào trước hàm là hàm đó tự động chạy bất đồng bộ (non-blocking)
+ *        hoặc tự động chuyển sang chạy trên Background Thread!"* -> **SAI HOÀN TOÀN!**
+ *      + **Sự thật**: `suspend` chỉ là một **khả năng ở tầng biên dịch (Compile-time capability)**:
+ *        Trình biên dịch biến đổi chữ ký hàm theo chuẩn **CPS (Continuation Passing Style)**, thêm tham số ẩn
+ *        `Continuation<? super T> $completion` và tạo **State Machine (`switch (label)`)** để hàm *có quyền*
+ *        gọi các điểm tạm dừng (`delay`, `withContext`, non-blocking I/O).
+ *      + Nếu bên trong một `suspend fun`, bạn KHÔNG gọi điểm tạm dừng nào hoặc bạn gọi hàm khóa luồng như `Thread.sleep(50)`,
+ *        thì hàm đó vẫn chạy **trên chính Thread của người gọi (`main`)** và **VẪN KHÓA CỨNG (BLOCK) Thread đó**!
  *
  * 2. SO SÁNH JAVA VS KOTLIN:
- *    - Java (`lesson14-thread`): Dùng `Thread`, `ExecutorService`, `CompletableFuture.supplyAsync(...).thenCompose(...)`
- *      (dễ rơi vào callback hell hoặc khó debug stacktrace) hoặc Virtual Threads (Project Loom từ Java 21+).
- *    - Kotlin: Viết code bất đồng bộ với `suspend fun` trông **tuần tự, dễ đọc y hệt code đồng bộ**,
- *      dùng `try-catch` và vòng lặp `for` bình thường, nhưng bên dưới hoàn toàn Non-blocking!
+ *    - Java (`lesson14-thread`): Dùng `Thread`, `ExecutorService`, `CompletableFuture` hoặc Virtual Threads (Java 21+).
+ *    - Kotlin: Viết code bất đồng bộ với `suspend fun` theo cấu trúc tuần tự dễ đọc, dùng `try-catch` và vòng lặp `for`
+ *      bình thường, kết hợp chặt chẽ với Structured Concurrency.
  *
  * 3. SPRING KOTLIN CORNER:
- *    - Trong Spring Boot 3+ (đặc biệt là Spring WebFlux hoặc Spring MVC hỗ trợ Coroutines), bạn có thể viết
- *      trực tiếp từ khóa `suspend` trên метод của `@RestController` và `CoroutineCrudRepository`:
- *      ```kotlin
- *      @GetMapping("/users/{id}")
- *      suspend fun getUser(@PathVariable id: String): UserResponse = userService.findById(id)
- *      ```
- *      Spring tự động chuyển đổi sang Reactive `Mono<UserResponse>` bên dưới mà bạn không cần học Reactor API phức tạp!
+ *    - Trong Spring WebFlux / Reactive Coroutines, bạn có thể viết trực tiếp `suspend fun` trên `@RestController`
+ *      khi làm việc với các thư viện Non-blocking (WebClient, R2DBC `CoroutineCrudRepository`).
  */
 
-// Một `suspend fun` điển hình: Có thể tạm dừng ở các điểm gọi suspend khác (`delay`) mà không khóa OS Thread
+// 1. Một `suspend fun` đúng chuẩn Non-blocking: Tạm dừng tại `delay` và trả lại OS Thread
 suspend fun simulateNonBlockingIoTask(taskId: Int): String {
     val beforeThread = Thread.currentThread().name
-    delay(80) // Tạm dừng Coroutine 80ms (NON-BLOCKING: Giải phóng OS Thread!)
+    delay(60) // Điểm tạm dừng (Suspension point): Giải phóng OS Thread hiện tại!
     val afterThread = Thread.currentThread().name
-    return "Task #$taskId hoàn tất (Trước delay: [$beforeThread] -> Sau delay: [$afterThread])"
+    return "Task #$taskId hoan tat (Truoc delay: [$beforeThread] -> Sau delay: [$afterThread])"
+}
+
+// 2. Minh họa phản ví dụ (Anti-pattern): Hàm có từ khóa `suspend` nhưng gọi `Thread.sleep()` bên trong!
+// Từ khóa `suspend` KHÔNG tự động đẩy hàm này sang Background Thread và KHÔNG biến `Thread.sleep` thành non-blocking!
+suspend fun badBlockingSuspendFunction(taskId: Int): String {
+    val currentThread = Thread.currentThread().name
+    Thread.sleep(50) // VẪN KHÓA CỨNG (BLOCK) OS Thread đang gọi!
+    return "BadBlockingTask #$taskId chay tren [$currentThread] (da khoa cung Thread nay 50ms!)"
 }
 
 fun main() = runBlocking {
@@ -70,45 +76,62 @@ fun main() = runBlocking {
     // =========================================================================
     // 1. MINH HỌA `suspend fun` VÀ CONTINUATION STATE MACHINE
     // =========================================================================
-    println("1. Thực thi `suspend fun` (Tạm dừng không khóa Thread - Non-blocking):")
+    println("1. Thuc thi `suspend fun` voi diem tam dung `delay` (Non-blocking):")
     val result = simulateNonBlockingIoTask(1)
-    println("  - Kết quả: $result")
+    println("  - Ket qua: $result")
 
     // =========================================================================
-    // 2. SO SÁNH TỐC ĐỘ & BỘ NHỚ: CHẠY ĐỒNG THỜI 1.000 TÁC VỤ CHỜ 50ms
+    // 2. CHỨNG MINH: `suspend` KHÔNG TỰ ĐỘNG CHUYỂN THREAD HAY CHỐNG BLOCKING!
     // =========================================================================
-    println("\n2. Chạy đồng thời 1.000 Coroutines (mỗi Coroutine chờ `delay(50ms)`):")
+    println("\n2. Chung minh: `suspend fun` goi `Thread.sleep(50)` VAN KHOA CUNG Thread goi:")
+    val callerThreadName = Thread.currentThread().name
+    val badBlockingMs = measureTimeMillis {
+        // Dù chạy trong 2 `launch` đồng thời trên cùng 1 Thread của runBlocking,
+        // vì `badBlockingSuspendFunction` dùng `Thread.sleep(50)` (blocking, không nhường thread),
+        // chúng phải đợi nhau tuần tự ~100ms thay vì ~50ms!
+        val job1 = launch { println("  - " + badBlockingSuspendFunction(1)) }
+        val job2 = launch { println("  - " + badBlockingSuspendFunction(2)) }
+        job1.join()
+        job2.join()
+    }
+    println("  -> Caller thread la [$callerThreadName]; 2 ham `badBlockingSuspendFunction(50ms)` mat tong cong: ${badBlockingMs}ms (>= 100ms vi bi block!)")
+    check(badBlockingMs >= 90)
+
+    // =========================================================================
+    // 3. CONCURRENCY (ĐỒNG THỜI) TRÊN 1 THREAD: 1.000 COROUTINES CÙNG CHỜ `delay(50ms)`
+    // =========================================================================
+    println("\n3. Chay dong thoi (Concurrency) 1.000 Coroutines tren cung 1 Thread voi `delay(50ms)`:")
     var completedCount = 0
     val coroutineElapsedMs = measureTimeMillis {
-        // Khởi chạy 1.000 Coroutine con chạy song song ngay trên cùng 1 Thread của runBlocking!
-        // Nếu dùng Thread.sleep(50) tuần tự trên 1 Thread thì sẽ mất 1000 * 50ms = 50.000ms (50 giây)!
-        // Nhưng với `delay(50)` (Non-blocking), cả 1.000 Coroutine cùng bắt đầu chờ và hoàn thành chỉ trong ~50-100ms!
+        // Chú ý thuật ngữ: Đây là CONCURRENCY (đồng thời đan xen khi chờ I/O trên cùng 1 Thread của runBlocking),
+        // KHÔNG PHẢI Parallelism (song song vật lý trên nhiều nhân CPU)!
+        // Khi Coroutine #0 gặp `delay(50)`, nó tạm dừng và nhường ngay Thread `main` cho Coroutine #1, #2...
+        // Nhờ đó cả 1.000 Coroutine cùng bắt đầu đếm ngược 50ms và hoàn thành chỉ trong khoảng ~50-150ms!
         val jobs = List(1_000) { index ->
             launch {
                 delay(50)
                 completedCount++
                 if (index == 0 || index == 999) {
-                    println("  - Coroutine #$index chạy trên Thread: [${Thread.currentThread().name}]")
+                    println("  - Coroutine #$index chay tren Thread: [${Thread.currentThread().name}]")
                 }
             }
         }
-        // Đợi tất cả 1.000 Coroutine hoàn thành
         jobs.forEach { it.join() }
     }
-    println("  -> Đã hoàn thành $completedCount / 1.000 Coroutines chỉ trong: ${coroutineElapsedMs}ms (thay vì 50.000ms!)")
+    println("  -> Da hoan thanh $completedCount / 1.000 Coroutines chi trong: ${coroutineElapsedMs}ms (nho Concurrency & Suspension!)")
+    check(completedCount == 1_000)
 
     // =========================================================================
-    // 3. ĐỐI CHIẾU VỚI `Thread.sleep()` (BLOCKING OS THREAD)
+    // 4. ĐỐI CHIẾU VỚI `Thread.sleep()` TUẦN TỰ
     // =========================================================================
-    println("\n3. Đối chiếu với `Thread.sleep(50)` (Blocking OS Thread tuần tự):")
+    println("\n4. Doi chieu voi 3 lan `Thread.sleep(50)` tuan tu:")
     val blockingElapsedMs = measureTimeMillis {
         repeat(3) { idx ->
-            // Thread.sleep khóa cứng OS Thread hiện tại, không ai khác dùng được Thread này trong lúc chờ!
             Thread.sleep(50)
-            println("  - [Blocking] Lần ngủ thứ ${idx + 1} trên Thread [${Thread.currentThread().name}]")
+            println("  - [Blocking] Lan ngu thu ${idx + 1} tren Thread [${Thread.currentThread().name}]")
         }
     }
-    println("  -> Chỉ riêng 3 lần `Thread.sleep(50)` tuần tự đã tốn: ${blockingElapsedMs}ms")
+    println("  -> Chi rieng 3 lan `Thread.sleep(50)` tuan tu da ton: ${blockingElapsedMs}ms")
 
     println("\n--- ___ * END EX01 * ___ ---")
 }

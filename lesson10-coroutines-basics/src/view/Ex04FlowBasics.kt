@@ -32,8 +32,8 @@ import kotlinx.coroutines.runBlocking
  *
  * 2. SO SÁNH JAVA VS KOTLIN:
  *    - Java Reactive (`Flux<T>` của Project Reactor / RxJava):
- *      Phải học hàng trăm toán tử đặc thù (`flatMap`, `concatMap`, `zipWith`, `subscribeOn`) và không dùng được
- *      cấu trúc điều khiển chuẩn (`for`, `try-catch`) bên trong.
+ *      Phải học nhiều toán tử đặc thù (`flatMap`, `concatMap`, `zipWith`, `subscribeOn`) và khó dùng
+ *      cấu trúc điều khiển chuẩn (`for`, `try-catch`) trực tiếp bên trong.
  *    - Kotlin `Flow<T>`:
  *      Bên trong `flow { ... }`, bạn viết vòng lặp `for`, `if/else`, `try-catch`, gọi `delay()` hay `suspend fun`
  *      bình thường, rồi phát từng phần tử ra bằng `emit(value)`!
@@ -50,16 +50,16 @@ data class StockTick(val symbol: String, val priceVnd: Long, val sequenceNo: Int
 // Hàm tạo một Cold Flow phát ra giá cổ phiếu theo thời gian thực (mỗi 40ms phát 1 bản ghi)
 // Lưu ý: Hàm trả về `Flow<T>` KHÔNG CẦN đánh dấu `suspend` vì bản thân việc tạo Flow chưa thực thi gì cả!
 fun observeStockPriceStream(symbol: String): Flow<StockTick> = flow {
-    println("  -> [Flow Producer] Bắt đầu mở kết nối luồng giá cho mã '$symbol'...")
+    println("  -> [Flow Producer] Bat dau mo ket noi luong gia cho ma '$symbol'...")
     val simulatedPrices = listOf(82_500L, 81_900L, 83_200L, 84_000L, 82_800L)
 
     for ((index, price) in simulatedPrices.withIndex()) {
         delay(40) // Tạm dừng 40ms không khóa OS Thread (mô phỏng chờ gói tin từ sàn chứng khoán)
         val tick = StockTick(symbol, price, sequenceNo = index + 1)
-        println("  -> [Flow Producer] Phát (emit) bản tin #${tick.sequenceNo}: ${tick.priceVnd} VNĐ")
+        println("  -> [Flow Producer] Phat (emit) ban tin #${tick.sequenceNo}: ${tick.priceVnd} VND")
         emit(tick) // Đẩy phần tử xuống cho Collector!
     }
-    println("  -> [Flow Producer] Đã đóng luồng giá cho mã '$symbol'.")
+    println("  -> [Flow Producer] Da dong luong gia cho ma '$symbol'.")
 }
 
 fun main() = runBlocking {
@@ -68,35 +68,36 @@ fun main() = runBlocking {
     // =========================================================================
     // 1. CHỨNG MINH TÍNH CHẤT "COLD STREAM" (LUỒNG LẠNH) CỦA `Flow<T>`
     // =========================================================================
-    println("1. Khởi tạo `Flow<T>` và chuỗi toán tử trung gian (`filter`, `map`, `onEach`):")
+    println("1. Khoi tao `Flow<T>` va chuoi toan tu trung gian (`filter`, `map`, `onEach`):")
     val highPriceAlertFlow: Flow<String> = observeStockPriceStream("FPT")
         .filter { tick ->
             // Chỉ quan tâm các bước giá >= 83.000 VNĐ
             tick.priceVnd >= 83_000L
         }
         .onEach { tick ->
-            println("    [Intermediate onEach] Phát hiện đỉnh giá vượt ngưỡng tại nhịp #${tick.sequenceNo}")
+            println("    [Intermediate onEach] Phat hien dinh gia vuot nguong tai nhip #${tick.sequenceNo}")
         }
         .map { tick ->
-            "CẢNH BÁO MUA/BÁN [${tick.symbol} - Nhịp #${tick.sequenceNo}]: Giá đạt ${tick.priceVnd} VNĐ"
+            "CANH BAO MUA/BAN [${tick.symbol} - Nhip #${tick.sequenceNo}]: Gia dat ${tick.priceVnd} VND"
         }
 
-    println("  * Lưu ý: Cho đến dòng này, `observeStockPriceStream` CHƯA HỀ CHẠY vì chưa gọi `.collect`!\n")
+    println("  * Luu y: Cho den dong nay, `observeStockPriceStream` CHUA HE CHAY vi chua goi `.collect`!\n")
 
     // =========================================================================
     // 2. KÍCH HOẠT LUỒNG VỚI TERMINAL OPERATOR `.collect { ... }`
     // =========================================================================
-    println("2. Bắt đầu thu thập dữ liệu lần 1 với `.collect { ... }`:")
+    println("2. Bat dau thu thap du lieu lan 1 voi `.collect { ... }`:")
     highPriceAlertFlow.collect { alertMessage ->
-        println("    => [Collector nhận được]: $alertMessage")
+        println("    => [Collector nhan duoc]: $alertMessage")
     }
 
     // =========================================================================
     // 3. THU GOM LUỒNG THÀNH DANH SÁCH VỚI `.toList()`
     // =========================================================================
-    println("\n3. Vì là Cold Flow, gọi `.toList()` sẽ kích hoạt luồng chạy lại độc lập:")
+    println("\n3. Vi la Cold Flow, goi `.toList()` se kich hoat luong chay lai doc lap:")
     val collectedAlerts: List<String> = highPriceAlertFlow.toList()
-    println("  -> Tổng số cảnh báo thu được qua `.toList()`: ${collectedAlerts.size} bản tin")
+    println("  -> Tong so canh bao thu duoc qua `.toList()`: ${collectedAlerts.size} ban tin")
+    check(collectedAlerts.size == 2)
 
     println("\n--- ___ * END EX04 * ___ ---")
 }
