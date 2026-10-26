@@ -11,13 +11,14 @@ package view
  *        Lambda phải được biểu diễn thành một đối tượng thực thi interface `kotlin.jvm.functions.Function0`
  *        (thông qua class ẩn danh hoặc `invokedynamic`).
  *      + Nếu Lambda không bắt giữ biến bên ngoài (Non-capturing), Kotlin có thể tái sử dụng một Singleton instance;
- *        NHƯNG nếu Lambda **bắt giữ biến cục bộ (Capturing closure)** và nằm trong vòng lặp nóng (hot loop),
- *        JVM sẽ phải cấp phát một đối tượng `FunctionN` mới trên **HEAP** ở mỗi lượt gọi, kèm chi phí gọi hàm ảo (`invoke()`)!
+ *        NHƯNG nếu Lambda **bắt giữ biến cục bộ (Capturing closure)** và truyền vào hàm non-inline, ở mức Bytecode
+ *        chương trình phải khởi tạo đối tượng `FunctionN` cho closure đó (tuy nhiên ở Runtime, JIT Compiler của JVM
+ *        vẫn có thể áp dụng Escape Analysis / Scalar Replacement để tối ưu giảm cấp phát tùy ngữ cảnh thực thi).
  *    - **Giải pháp `inline fun`**:
  *      + Khi đánh dấu `inline fun`, trình biên dịch Kotlin **sao chép (copy-paste) trực tiếp mã Bytecode** của cả
  *        thân hàm `inline` lẫn thân biểu thức Lambda truyền vào ngay tại vị trí gọi hàm (Call site)!
- *      + Hệ quả: **Không tạo đối tượng `FunctionN` trên Heap, không tốn lời gọi hàm phụ**, và mở khóa 2 tính năng
- *        chỉ `inline` mới có: **Non-local `return`** và **Reified Type Parameters (`reified T`, học ở Lesson 07)**.
+ *      + Hệ quả: **Không tạo đối tượng `FunctionN` ở Bytecode, không tốn lời gọi hàm ảo `invoke()`**, và mở khóa 2 tính năng
+ *        chỉ `inline` mới có: **Non-local `return`** và **Reified Type Parameters (`reified T`, học ở Lesson 09)**.
  *    - **Khi nào cần `noinline`?**
  *      + Vì Lambda được `inline` bị "trải phẳng" thành các lệnh Bytecode nên nó không còn là một đối tượng Object nữa.
  *      + Nếu một `inline fun` có 2 Lambda, trong đó 1 Lambda cần được **lưu vào biến/thuộc tính, trả về từ hàm,
@@ -50,17 +51,26 @@ package view
  *        * Vì bản thân nó có chữ `fun`, nên lệnh `return` trơn bên trong nó chỉ thoát khỏi **chính hàm ẩn danh đó** (**Local Return**),
  *          không cần gõ `@label`! Rất hữu ích khi có nhiều nhánh `return` cục bộ phức tạp.
  *
- * 3. CLOSURE CAPTURE (ĐẶC BIỆT KHI BẮT GIỮ BIẾN KHẢ BIẾN `var` TRÊN HEAP):
+ * 3. CLOSURE CAPTURE: PHÂN BIỆT LAMBDA ĐƯỢC `inline` VỚI CLOSURE TỒN TẠI DƯỚI DẠNG OBJECT (`Ref.*`):
  *    - Trong Java, Lambda chỉ được phép truy cập biến cục bộ của hàm ngoài nếu biến đó là `final` hoặc *effectively final*.
  *    - Trong Kotlin, Lambda có thể **bắt giữ và thay đổi trực tiếp biến cục bộ `var`** của hàm bao ngoài!
- *    - **Cơ chế dưới tầng Bytecode**:
- *      + Khi biến cục bộ `var counter = 0` bị Lambda bắt giữ, trình biên dịch Kotlin tự động tạo một đối tượng hộp
- *        `val counter = Ref.IntRef()` nằm trên **HEAP** (với kiểu đối tượng là `Ref.ObjectRef<T>`).
- *      + Mọi thao tác đọc/ghi `counter` ở cả hàm ngoài và bên trong các Lambda thực chất đều đọc/ghi vào trường `counter.element` trên Heap!
+ *    - **Cơ chế dưới tầng Bytecode (Phải phân biệt rõ 2 trường hợp)**:
+ *      1) **Khi biến `var` được sửa đổi bên trong một Lambda ĐƯỢC `inline` (ví dụ `listOf(1, 2).forEach { sum += it }`)**:
+ *         + Vì thân Lambda được chép phẳng trực tiếp vào hàm gọi, không hề có đối tượng Closure tách rời nào được tạo ra.
+ *         + Bytecode (`javap -c`) chỉ đọc/ghi trực tiếp biến cục bộ trên Stack Frame bằng lệnh `iload`, `iadd`, `istore` —
+ *           **KHÔNG tạo đối tượng hộp `Ref.IntRef` trên Heap**!
+ *      2) **Khi biến `var` bị bắt giữ bởi một Closure PHẢI TỒN TẠI DƯỚI DẠNG OBJECT** (ví dụ: truyền vào hàm non-inline,
+ *         tham số `noinline`, gói trong `Runnable`/`crossinline`, hoặc lưu trữ Lambda vào biến/danh sách):
+ *         + Чтобы cả hàm ngoài và đối tượng Closure cùng đọc/ghi một biến, trình biên dịch Kotlin mới đóng gói biến `var`
+ *           đó vào một đối tượng hộp (wrapper) trên **HEAP**:
+ *           * Với kiểu nguyên thủy: dùng `Ref.IntRef` (cho `Int`), `Ref.LongRef` (cho `Long`), `Ref.BooleanRef` (cho `Boolean`)...
+ *           * Với kiểu tham chiếu đối tượng: dùng `Ref.ObjectRef<T>`.
+ *         + Khi đó, thao tác đọc/ghi biến ở cả hàm ngoài và bên trong Closure thực chất là đọc/ghi trường `.element` của hộp `Ref`!
  *    - **Cái bẫy kinh điển (Delayed Callback capturing mutable `var`)**:
  *      + Nếu bạn tạo danh sách các callback trì hoãn (chạy sau) bên trong vòng lặp và cùng bắt giữ một biến `var currentStep`,
- *        thì tới lúc các callback được kích hoạt, tất cả chúng đều nhìn thấy **giá trị cuối cùng** của `currentStep` trên Heap!
- *      + Cách khắc phục: Luôn sao chép ra một biến `val snapshot = currentStep` ở mỗi vòng lặp để mỗi callback bắt giữ một bản sao bất biến riêng!
+ *        thì tất cả các đối tượng callback đó đều chia sẻ chung 1 hộp `Ref.IntRef`! Tới lúc các callback được kích hoạt,
+ *        chúng đều nhìn thấy **giá trị cuối cùng** của `currentStep.element`!
+ *      + Cách khắc phục: Sao chép ra một biến `val snapshot = currentStep` ở mỗi vòng lặp để mỗi callback giữ giá trị riêng!
  * =====================================================================
  */
 
@@ -115,9 +125,9 @@ fun main() {
     println("   -> [2c. Anonymous `fun(code) { return }`]       Return cuc bo khong nhan:  $resAnonymousFun\n")
 
     // =================================================================
-    // 3. Closure Capture: Biến cục bộ `var` được bọc vào `Ref.IntRef` trên HEAP & Bẫy Callback
+    // 3. Closure Capture: Phân biệt Inline Lambda (Stack local) vs Non-inline Closure Object (`Ref.IntRef`)
     // =================================================================
-    println("3. [Closure Capture & Ref.IntRef Trap] Bat giu bien `var` tren Heap va cach phong tranh bay:")
+    println("3. [Closure Capture] Phan biet Inline Lambda (iload/istore) vs Stored Closure (`Ref.IntRef`):")
     demonstrateClosureCaptureAndTrap()
     println()
 
@@ -200,39 +210,43 @@ private fun demoAnonymousFunctionReturn(codes: List<String>): List<String> {
     return kept
 }
 
-// 3. Minh họa Closure Capture trên Heap (`Ref.IntRef`) và bẫy kinh điển khi trì hoãn thực thi Lambda
+// 3. Minh họa sự khác biệt giữa biến `var` trong Inline Lambda vs Non-inline/Stored Closure (`Ref.IntRef`)
 private fun demonstrateClosureCaptureAndTrap() {
-    // 3a. Khi Lambda không trì hoãn mà cập nhật biến đếm: `Ref.IntRef` trên Heap hoạt động đúng như mong đợi
+    // 3a. Khi cập nhật `var` bên trong hàm `inline` (như `.forEach`):
+    // Thân lambda được chép thẳng vào hàm này -> Bytecode chỉ dùng biến cục bộ (iload, iadd, istore)
+    // trên Stack Frame, KHÔNG tạo hộp `Ref.IntRef` trên Heap!
     var totalProcessed = 0
     listOf(10, 20, 30).forEach { value ->
-        totalProcessed += value // Đọc/ghi vào đối tượng hộp Ref.IntRef trên Heap
+        totalProcessed += value // Đọc/ghi trực tiếp biến cục bộ sau khi inlining (không cần Ref.IntRef)
     }
     check(totalProcessed == 60)
-    println("   -> [Ref.IntRef] Tong cong don qua Closure Capture: totalProcessed = $totalProcessed")
+    println("   -> [3a. Inline Lambda `.forEach`] Cap nhat bien cuc bo truc tiep (khong tao Ref.IntRef): totalProcessed = $totalProcessed")
 
-    // 3b. BẪY KINH ĐIỂN: Nhiều callback trì hoãn cùng bắt giữ 1 biến `var` dùng chung trên Heap!
+    // 3b. Khi biến `var` bị bắt giữ bởi một Closure tồn tại dưới dạng Object (lưu vào biến hoặc danh sách):
+    // BẪY KINH ĐIỂN: Nhiều callback trì hoãn cùng bắt giữ 1 biến `var` -> cùng chia sẻ 1 hộp `Ref.IntRef`!
     val buggyCallbacks = mutableListOf<() -> String>()
     var sharedMutableStep = 0
     while (sharedMutableStep < 3) {
         sharedMutableStep++
-        // Mọi Lambda trong `buggyCallbacks` đều giữ tham chiếu tới CÙNG 1 hộp `Ref.IntRef(sharedMutableStep)` trên Heap!
+        // Vì lambda này được lưu vào `buggyCallbacks` (không thể inline), trình biên dịch tạo đối tượng `Function0`
+        // và bọc `sharedMutableStep` vào CÙNG 1 hộp `Ref.IntRef` dùng chung cho cả 3 callback!
         buggyCallbacks.add { "Step=$sharedMutableStep" }
     }
     val buggyOutputs = buggyCallbacks.map { it() }
     check(buggyOutputs == listOf("Step=3", "Step=3", "Step=3"))
-    println("   -> [TRAP - Capture chung `var`] Khi goi cac callback sau vong lap: $buggyOutputs (Tat ca deu in Step=3!)")
+    println("   -> [3b. Stored Closure - Ref.IntRef Trap] Goi cac callback sau vong lap: $buggyOutputs (Tat ca deu in Step=3!)")
 
     // 3c. CÁCH KHẮC PHỤC CHUẨN: Tạo một bản sao bất biến `val snapshot` ở mỗi lượt lặp!
     val safeCallbacks = mutableListOf<() -> String>()
     var stepCursor = 0
     while (stepCursor < 3) {
         stepCursor++
-        val snapshotStep = stepCursor // Mỗi lượt lặp tạo một biến `val` riêng biệt!
+        val snapshotStep = stepCursor // Mỗi lượt lặp tạo một biến `val` cục bộ riêng cho từng callback!
         safeCallbacks.add { "Step=$snapshotStep" }
     }
     val safeOutputs = safeCallbacks.map { it() }
     check(safeOutputs == listOf("Step=1", "Step=2", "Step=3"))
-    println("   -> [FIXED - Capture `val` snapshot] Moi callback giu dung gia tri: $safeOutputs")
+    println("   -> [3c. FIXED - Capture `val` snapshot] Moi callback giu dung gia tri: $safeOutputs")
 }
 
 // =====================================================================
